@@ -738,7 +738,7 @@
     <button class="btn btn-secondary" onclick="showTrends()">View my trends →</button>
 
     <div style="text-align:center;margin-top:20px;">
-      <button class="version-badge" onclick="showChangelog()">v1.0.5</button>
+      <button class="version-badge" onclick="showChangelog()">v1.0.6</button>
     </div>
   </div>
 </div>
@@ -752,6 +752,12 @@
       <button class="btn-ghost btn" onclick="hideChangelog()" style="width:auto;padding:8px;">✕</button>
     </div>
     <div class="cl-entries">
+
+      <div class="cl-entry">
+        <div class="cl-version">v1.0.6</div>
+        <div class="cl-name">Questions &amp; Events Update</div>
+        <div class="cl-desc">Added eczema tracking — skin clarity rated 1–5 daily. Replaced the Poor sleep event chip with Intimacy. Step count noted for future structured tracking.</div>
+      </div>
 
       <div class="cl-entry">
         <div class="cl-version">v1.0.5</div>
@@ -841,7 +847,7 @@
       </button>
       <div class="event-chips" id="event-chips">
         <button class="chip" data-event="Doctor visit"      onclick="toggleChip(this)">Doctor visit</button>
-        <button class="chip" data-event="Poor sleep"        onclick="toggleChip(this)">Poor sleep</button>
+        <button class="chip" data-event="Intimacy"          onclick="toggleChip(this)">Intimacy</button>
         <button class="chip" data-event="High stress day"   onclick="toggleChip(this)">High stress day</button>
         <button class="chip" data-event="Travel day"        onclick="toggleChip(this)">Travel day</button>
         <button class="chip" data-event="Hot flash episode" onclick="toggleChip(this)">Hot flash episode</button>

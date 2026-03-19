@@ -979,13 +979,13 @@ async function init() {
   questions = qs || [];
 
   // Check for today's entry
-  const { data: existing } = await db
+  const { data: existing, error: entryError } = await db
     .from('ht_logs')
     .select('*')
     .eq('log_date', todayISO())
     .maybeSingle();
 
-  todayEntry = existing;
+  todayEntry = (!entryError && existing) ? existing : null;
 
   // Streak dots (last 14 days)
   const { data: recent } = await db

@@ -684,7 +684,7 @@ async function init() {
 
   // Load questions
   const { data: qs } = await db
-    .from('hormone_questions')
+    .from('ht_questions')
     .select('*')
     .eq('active', true)
     .order('sort_order');
@@ -692,7 +692,7 @@ async function init() {
 
   // Check for today's entry
   const { data: existing } = await db
-    .from('hormone_logs')
+    .from('ht_logs')
     .select('*')
     .eq('log_date', todayISO())
     .maybeSingle();
@@ -701,7 +701,7 @@ async function init() {
 
   // Streak dots (last 14 days)
   const { data: recent } = await db
-    .from('hormone_logs')
+    .from('ht_logs')
     .select('log_date')
     .gte('log_date', new Date(Date.now() - 13 * 86400000).toLocaleDateString('en-CA'))
     .order('log_date');
@@ -814,9 +814,9 @@ async function submitEntry() {
   };
 
   if (todayEntry) {
-    await db.from('hormone_logs').update(payload).eq('id', todayEntry.id);
+    await db.from('ht_logs').update(payload).eq('id', todayEntry.id);
   } else {
-    await db.from('hormone_logs').insert(payload);
+    await db.from('ht_logs').insert(payload);
   }
 
   logsCache = null; // invalidate cache
@@ -831,13 +831,13 @@ async function showTrends() {
 
 async function loadTrends() {
   if (!questions.length) {
-    const { data: qs } = await db.from('hormone_questions').select('*').eq('active', true).order('sort_order');
+    const { data: qs } = await db.from('ht_questions').select('*').eq('active', true).order('sort_order');
     questions = qs || [];
   }
 
   const since = new Date(Date.now() - (chartWindow - 1) * 86400000).toLocaleDateString('en-CA');
   const { data: logs } = await db
-    .from('hormone_logs')
+    .from('ht_logs')
     .select('log_date, answers')
     .gte('log_date', since)
     .order('log_date');

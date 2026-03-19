@@ -733,7 +733,7 @@
     <button class="btn btn-secondary" onclick="showTrends()">View my trends →</button>
 
     <div style="text-align:center;margin-top:20px;">
-      <button class="version-badge" onclick="showChangelog()">v1.0.6</button>
+      <button class="version-badge" onclick="showChangelog()">v1.0.7</button>
     </div>
   </div>
 </div>
@@ -747,6 +747,12 @@
       <button class="btn-ghost btn" onclick="hideChangelog()" style="width:auto;padding:8px;">✕</button>
     </div>
     <div class="cl-entries">
+
+      <div class="cl-entry">
+        <div class="cl-version">v1.0.7</div>
+        <div class="cl-name">UX &amp; Stability</div>
+        <div class="cl-desc">Auto-advance after rating selection with a 600ms delay — cancellable by tapping Back. Added Pass button to skip a question without recording a score. Scale hints updated to "1 - rough day" and "feeling great - 5". Fixed date handling across streak dots and query ranges to use device local time correctly. Hot flash question reworded and moved to last position.</div>
+      </div>
 
       <div class="cl-entry">
         <div class="cl-version">v1.0.6</div>
@@ -815,13 +821,13 @@
     <div class="rating-grid" id="rating-row1"></div>
     <div class="rating-grid-row2" id="rating-row2"></div>
     <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-light);margin-top:-20px;margin-bottom:28px;">
-      <span>rough day</span>
-      <span>feeling great</span>
+      <span>1 - rough day</span>
+      <span>feeling great - 5</span>
     </div>
 
     <div class="q-nav">
       <button class="btn btn-secondary" onclick="prevQuestion()" id="prev-btn">Back</button>
-      <button class="btn btn-primary" onclick="nextQuestion()" id="next-btn" disabled>Next</button>
+      <button class="btn btn-ghost" onclick="passQuestion()" id="pass-btn">Pass</button>
     </div>
   </div>
 </div>
@@ -1006,16 +1012,17 @@ async function init() {
   const { data: recent } = await db
     .from('ht_logs')
     .select('log_date')
-    .gte('log_date', new Date(Date.now() - 13 * 86400000).toLocaleDateString('en-CA'))
+    .gte('log_date', (() => { const d = new Date(Date.now() - 13 * 86400000); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })())
     .order('log_date');
 
   const doneSet = new Set((recent || []).map(r => r.log_date));
   const row = document.getElementById('streak-row');
   row.innerHTML = '';
   for (let i = 13; i >= 0; i--) {
-    const d = new Date(Date.now() - i * 86400000).toLocaleDateString('en-CA');
+    const d = new Date(Date.now() - i * 86400000);
+    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const dot = document.createElement('div');
-    dot.className = 'streak-dot' + (d === todayISO() ? ' today' : doneSet.has(d) ? ' filled' : '');
+    dot.className = 'streak-dot' + (iso === todayISO() ? ' today' : doneSet.has(iso) ? ' filled' : '');
     row.appendChild(dot);
   }
 
@@ -1046,6 +1053,8 @@ async function startCheckin() {
   show('q-screen');
 }
 
+let autoAdvanceTimer = null;
+
 function renderQuestion() {
   const q = questions[currentQ];
   const total = questions.length;
@@ -1057,8 +1066,8 @@ function renderQuestion() {
   document.getElementById('q-count-label').textContent = `${currentQ + 1} / ${total}`;
   document.getElementById('progress-fill').style.width = `${((currentQ + 1) / total) * 100}%`;
   document.getElementById('prev-btn').style.opacity = currentQ === 0 ? '0.3' : '1';
+  document.getElementById('pass-btn').textContent = currentQ === questions.length - 1 ? 'Pass →' : 'Pass';
 
-  // Build 1-10 buttons (two rows of 5)
   const saved = answers[q.id];
   const row1 = document.getElementById('rating-row1');
   const row2 = document.getElementById('rating-row2');
@@ -1073,18 +1082,30 @@ function renderQuestion() {
     row1.appendChild(btn);
   }
   row2.innerHTML = '';
-
-  document.getElementById('next-btn').disabled = saved === undefined;
-  document.getElementById('next-btn').textContent = currentQ === questions.length - 1 ? 'Next →' : 'Next';
 }
 
 function selectRating(v) {
+  // Cancel any pending auto-advance
+  if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+
   const q = questions[currentQ];
   answers[q.id] = v;
   document.querySelectorAll('.r-btn').forEach(b => {
     b.classList.toggle('selected', parseInt(b.textContent) === v);
   });
-  document.getElementById('next-btn').disabled = false;
+
+  // Auto-advance after 600ms
+  autoAdvanceTimer = setTimeout(() => {
+    autoAdvanceTimer = null;
+    nextQuestion();
+  }, 600);
+}
+
+function passQuestion() {
+  if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+  const q = questions[currentQ];
+  answers[q.id] = null;
+  nextQuestion();
 }
 
 function nextQuestion() {
@@ -1097,6 +1118,7 @@ function nextQuestion() {
 }
 
 function prevQuestion() {
+  if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
   if (currentQ > 0) {
     currentQ--;
     renderQuestion();

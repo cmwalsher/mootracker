@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Daily Wellness Check-in</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --rose:       #c9897a;
+    --rose-light: #e8c5bd;
+    --rose-pale:  #f5e8e4;
+    --sage:       #7a9e8e;
+    --sage-light: #b8d4c8;
+    --sage-pale:  #e8f2ee;
+    --cream:      #faf6f2;
+    --warm-white: #fff9f6;
+    --text:       #3d2e2a;
+    --text-mid:   #7a6460;
+    --text-light: #b0a09c;
+    --border:     #e8ddd8;
+    --shadow:     rgba(61,46,42,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background texture ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 10%, rgba(201,137,122,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(122,158,142,0.10) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── SCREENS ── */
+  .screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    z-index: 1;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px);
+  }
+  .screen.slide-out-left {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  .screen.slide-in-right {
+    animation: slideInRight 0.35s ease forwards;
+  }
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(30px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--warm-white);
+    border-radius: 28px;
+    padding: 36px 28px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 4px 32px var(--shadow), 0 1px 4px rgba(61,46,42,0.04);
+    border: 1px solid var(--border);
+  }
+
+  /* ── LOGO / HEADER ── */
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--rose);
+    margin-bottom: 6px;
+  }
+  .tagline {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    font-weight: 300;
+    line-height: 1.15;
+    color: var(--text);
+    margin-bottom: 24px;
+  }
+  .tagline em { font-style: italic; color: var(--rose); }
+
+  .date-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--rose-pale);
+    border-radius: 50px;
+    padding: 8px 18px;
+    font-size: 14px;
+    color: var(--rose);
+    font-weight: 500;
+    margin-bottom: 28px;
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    width: 100%;
+    padding: 17px 24px;
+    border-radius: 50px;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.01em;
+  }
+  .btn-primary {
+    background: var(--rose);
+    color: white;
+    box-shadow: 0 4px 16px rgba(201,137,122,0.35);
+  }
+  .btn-primary:active { transform: scale(0.97); box-shadow: 0 2px 8px rgba(201,137,122,0.25); }
+  .btn-primary:disabled { background: var(--rose-light); box-shadow: none; cursor: not-allowed; }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-mid);
+    border: 1.5px solid var(--border);
+    margin-top: 12px;
+  }
+  .btn-secondary:active { background: var(--rose-pale); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-light);
+    font-size: 14px;
+    padding: 12px;
+    width: auto;
+  }
+
+  /* ── PASSWORD SCREEN ── */
+  .input-wrap {
+    position: relative;
+    margin-bottom: 20px;
+  }
+  .input-wrap input {
+    width: 100%;
+    padding: 16px 20px;
+    border-radius: 16px;
+    border: 1.5px solid var(--border);
+    background: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-wrap input:focus { border-color: var(--rose-light); }
+  .error-msg {
+    color: var(--rose);
+    font-size: 13px;
+    text-align: center;
+    margin-top: -12px;
+    margin-bottom: 16px;
+    min-height: 18px;
+  }
+
+  /* ── LANDING ── */
+  .streak-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .streak-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+  .streak-dot.filled { background: var(--rose); }
+  .streak-dot.today  { background: var(--sage); }
+
+  .already-done {
+    background: var(--sage-pale);
+    border-radius: 16px;
+    padding: 16px 18px;
+    font-size: 14px;
+    color: var(--sage);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* ── QUESTION SCREEN ── */
+  #q-screen { justify-content: flex-start; padding-top: 0; }
+
+  .q-header {
+    width: 100%;
+    max-width: 420px;
+    padding: 52px 20px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .progress-bar-wrap {
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+    margin: 0 16px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--rose), var(--sage));
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+  .q-count {
+    font-size: 13px;
+    color: var(--text-light);
+    white-space: nowrap;
+  }
+
+  .q-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 0 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-bottom: 40px;
+  }
+
+  .q-category {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--rose);
+    margin-bottom: 10px;
+  }
+  .q-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 300;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .q-anchors {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-light);
+    margin-bottom: 28px;
+  }
+
+  /* ── RATING BUTTONS ── */
+  .rating-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .rating-grid-row2 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+  .r-btn {
+    aspect-ratio: 1;
+    border-radius: 16px;
+    border: 1.5px solid var(--border);
+    background: var(--warm-white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 56px;
+  }
+  .r-btn:active  { transform: scale(0.92); }
+  .r-btn.selected {
+    background: var(--rose);
+    border-color: var(--rose);
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 4px 14px rgba(201,137,122,0.4);
+  }
+
+  .q-nav {
+    display: flex;
+    gap: 10px;
+  }
+  .q-nav .btn { flex: 1; }
+
+  /* ── NOTES SCREEN ── */
+  .notes-area {
+    width: 100%;
+    min-height: 120px;
+    border-radius: 16px;
+    border: 1.5px solid var(--border);
+    background: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    color: var(--text);
+    padding: 16px 18px;
+    resize: none;
+    outline: none;
+    margin-bottom: 20px;
+    transition: border-color 0.2s;
+    line-height: 1.5;
+  }
+  .notes-area:focus { border-color: var(--rose-light); }
+
+  /* ── CONFIRMATION ── */
+  .confetti-icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+    animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  @keyframes popIn {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  /* ── TRENDS ── */
+  #trends-screen { justify-content: flex-start; padding-top: 0; overflow-y: auto; }
+
+  .trends-header {
+    width: 100%;
+    max-width: 420px;
+    padding: 52px 20px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .trends-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 300;
+  }
+
+  .time-tabs {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    max-width: 420px;
+    padding: 0 20px;
+    margin-bottom: 16px;
+  }
+  .time-tab {
+    flex: 1;
+    padding: 9px;
+    border-radius: 50px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .time-tab.active {
+    background: var(--rose);
+    border-color: var(--rose);
+    color: white;
+  }
+
+  .overview-card {
+    background: var(--warm-white);
+    border-radius: 24px;
+    padding: 20px;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 20px 14px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 16px var(--shadow);
+  }
+  .overview-title {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 14px;
+  }
+
+  .drilldown-list {
+    width: 100%;
+    max-width: 420px;
+    padding: 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 100px;
+  }
+  .drill-card {
+    background: var(--warm-white);
+    border-radius: 20px;
+    padding: 18px 20px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+  }
+  .drill-card:active { box-shadow: 0 2px 12px var(--shadow); }
+  .drill-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .drill-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .drill-avg {
+    font-size: 22px;
+    font-weight: 300;
+    font-family: 'Cormorant Garamond', serif;
+    color: var(--rose);
+  }
+  .drill-low { font-size: 11px; color: var(--text-light); margin-bottom: 10px; }
+  .drill-chart-wrap { height: 60px; position: relative; }
+  .drill-card.expanded .drill-chart-wrap { height: 130px; }
+
+  .nav-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(250,246,242,0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 10;
+  }
+  .nav-btn {
+    flex: 1;
+    padding: 14px 8px 18px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    color: var(--text-light);
+    transition: color 0.2s;
+  }
+  .nav-btn.active { color: var(--rose); }
+  .nav-icon { font-size: 20px; }
+
+  .loading-dots {
+    display: flex; gap: 6px; justify-content: center; margin: 20px 0;
+  }
+  .loading-dots span {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--rose-light);
+    animation: dot-bounce 1.2s infinite ease-in-out;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dot-bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-8px); background: var(--rose); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ PASSWORD SCREEN ══════════════ -->
+<div class="screen" id="pw-screen">
+  <div class="card">
+    <div class="logo">Wellness Tracker</div>
+    <div class="tagline">Your daily <em>check-in</em></div>
+    <div class="input-wrap">
+      <input type="password" id="pw-input" placeholder="Enter your password" autocomplete="current-password">
+    </div>
+    <div class="error-msg" id="pw-error"></div>
+    <button class="btn btn-primary" onclick="checkPassword()">Continue</button>
+  </div>
+</div>
+
+<!-- ══════════════ LANDING SCREEN ══════════════ -->
+<div class="screen hidden" id="landing-screen">
+  <div class="card">
+    <div class="logo">Wellness Tracker</div>
+    <div class="tagline">Good <em id="greeting-time">morning</em></div>
+    <div class="date-badge">
+      <span>🌸</span>
+      <span id="today-date-label"></span>
+    </div>
+
+    <div class="streak-row" id="streak-row"></div>
+
+    <div id="already-done-banner" class="already-done hidden">
+      <span>✓</span>
+      <span>You've already checked in today. Feel free to edit your entry.</span>
+    </div>
+
+    <button class="btn btn-primary" id="start-btn" onclick="startCheckin()">Start today's check-in</button>
+    <button class="btn btn-secondary" onclick="showTrends()">View my trends →</button>
+  </div>
+</div>
+
+<!-- ══════════════ QUESTION SCREEN ══════════════ -->
+<div class="screen hidden" id="q-screen">
+  <div class="q-header">
+    <button class="btn-ghost btn" onclick="prevQuestion()">←</button>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+    <div class="q-count" id="q-count-label">1 / 10</div>
+  </div>
+
+  <div class="q-card">
+    <div class="q-category" id="q-category"></div>
+    <div class="q-text" id="q-text"></div>
+    <div class="q-anchors">
+      <span id="q-low-label"></span>
+      <span id="q-high-label"></span>
+    </div>
+
+    <div class="rating-grid" id="rating-row1"></div>
+    <div class="rating-grid-row2" id="rating-row2"></div>
+
+    <div class="q-nav">
+      <button class="btn btn-secondary" onclick="prevQuestion()" id="prev-btn">Back</button>
+      <button class="btn btn-primary" onclick="nextQuestion()" id="next-btn" disabled>Next</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ NOTES SCREEN ══════════════ -->
+<div class="screen hidden" id="notes-screen">
+  <div class="card">
+    <div class="logo">Almost there</div>
+    <div class="tagline">Anything else on your <em>mind?</em></div>
+    <textarea class="notes-area" id="notes-input" placeholder="Optional — jot down anything worth remembering today…" rows="5"></textarea>
+    <button class="btn btn-primary" onclick="submitEntry()">Submit today's entry</button>
+    <button class="btn btn-secondary" onclick="submitEntry()">Skip notes & submit</button>
+    <button class="btn btn-ghost" onclick="goBack()">← Back to questions</button>
+  </div>
+</div>
+
+<!-- ══════════════ CONFIRMATION SCREEN ══════════════ -->
+<div class="screen hidden" id="done-screen">
+  <div class="card" style="text-align:center">
+    <div class="confetti-icon">🌸</div>
+    <div class="tagline">All <em>done</em> for today</div>
+    <p style="color:var(--text-mid);font-size:15px;line-height:1.5;margin-bottom:28px;">
+      Your check-in has been saved. See you tomorrow — take good care of yourself today.
+    </p>
+    <button class="btn btn-primary" onclick="showTrends()">View my trends →</button>
+    <button class="btn btn-secondary" onclick="showLanding()">Back to home</button>
+  </div>
+</div>
+
+<!-- ══════════════ TRENDS SCREEN ══════════════ -->
+<div class="screen hidden" id="trends-screen">
+  <div class="trends-header">
+    <div class="trends-title">My <em style="font-style:italic;color:var(--rose)">Trends</em></div>
+    <button class="btn-ghost btn" onclick="showLanding()" style="width:auto">✕</button>
+  </div>
+
+  <div class="time-tabs">
+    <button class="time-tab active" onclick="setWindow(7,this)">7 days</button>
+    <button class="time-tab" onclick="setWindow(30,this)">30 days</button>
+    <button class="time-tab" onclick="setWindow(90,this)">90 days</button>
+  </div>
+
+  <div class="overview-card">
+    <div class="overview-title">Overview — all metrics</div>
+    <canvas id="overview-chart" height="160"></canvas>
+    <div id="overview-loading" class="loading-dots"><span></span><span></span><span></span></div>
+  </div>
+
+  <div class="drilldown-list" id="drilldown-list">
+    <div class="loading-dots"><span></span><span></span><span></span></div>
+  </div>
+
+  <nav class="nav-bar">
+    <button class="nav-btn" onclick="showLanding()">
+      <span class="nav-icon">🏠</span>Home
+    </button>
+    <button class="nav-btn active">
+      <span class="nav-icon">📈</span>Trends
+    </button>
+  </nav>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════ -->
+<script>
+// ── CONFIG ───────────────────────────────────────────
+const SUPABASE_URL = 'https://prvrmmwicuionzuzmfnw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBydnJtbXdpY3Vpb256dXptZm53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODkyMDEsImV4cCI6MjA4OTI2NTIwMX0.L2iGKoOOqwDt4158ca4g5pXbcBA_zyxeQRsJy1wQlNQ';
+const APP_PASSWORD = 'YOUR_APP_PASSWORD';
+
+// ── INIT ─────────────────────────────────────────────
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let questions = [];
+let answers   = {};     // { question_id: score }
+let currentQ  = 0;
+let todayEntry = null;
+let chartWindow = 7;
+let overviewChart = null;
+let drillCharts   = {};
+let logsCache = null;
+
+// ── UTILS ─────────────────────────────────────────────
+function todayISO() {
+  return new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+}
+function formatDisplay(iso) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+}
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'morning';
+  if (h < 17) return 'afternoon';
+  return 'evening';
+}
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+// ── PASSWORD ──────────────────────────────────────────
+document.getElementById('pw-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkPassword();
+});
+function checkPassword() {
+  const val = document.getElementById('pw-input').value;
+  if (val === APP_PASSWORD) {
+    sessionStorage.setItem('wt_auth', '1');
+    init();
+  } else {
+    document.getElementById('pw-error').textContent = 'That password didn\'t work — try again.';
+    document.getElementById('pw-input').value = '';
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────
+async function init() {
+  show('landing-screen');
+  document.getElementById('today-date-label').textContent = formatDisplay(todayISO());
+  document.getElementById('greeting-time').textContent = greeting();
+
+  // Load questions
+  const { data: qs } = await db
+    .from('hormone_questions')
+    .select('*')
+    .eq('active', true)
+    .order('sort_order');
+  questions = qs || [];
+
+  // Check for today's entry
+  const { data: existing } = await db
+    .from('hormone_logs')
+    .select('*')
+    .eq('log_date', todayISO())
+    .maybeSingle();
+
+  todayEntry = existing;
+
+  // Streak dots (last 14 days)
+  const { data: recent } = await db
+    .from('hormone_logs')
+    .select('log_date')
+    .gte('log_date', new Date(Date.now() - 13 * 86400000).toLocaleDateString('en-CA'))
+    .order('log_date');
+
+  const doneSet = new Set((recent || []).map(r => r.log_date));
+  const row = document.getElementById('streak-row');
+  row.innerHTML = '';
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000).toLocaleDateString('en-CA');
+    const dot = document.createElement('div');
+    dot.className = 'streak-dot' + (d === todayISO() ? ' today' : doneSet.has(d) ? ' filled' : '');
+    row.appendChild(dot);
+  }
+
+  if (todayEntry) {
+    document.getElementById('already-done-banner').classList.remove('hidden');
+    document.getElementById('start-btn').textContent = 'Edit today\'s entry';
+    answers = todayEntry.answers || {};
+  } else {
+    document.getElementById('already-done-banner').classList.add('hidden');
+    document.getElementById('start-btn').textContent = 'Start today\'s check-in';
+    answers = {};
+  }
+}
+
+// ── CHECK-IN FLOW ─────────────────────────────────────
+function startCheckin() {
+  if (!questions.length) return;
+  currentQ = 0;
+  renderQuestion();
+  show('q-screen');
+}
+
+function renderQuestion() {
+  const q = questions[currentQ];
+  const total = questions.length;
+
+  document.getElementById('q-category').textContent = q.category || '';
+  document.getElementById('q-text').textContent = q.label;
+  document.getElementById('q-low-label').textContent = q.low_label || 'Low';
+  document.getElementById('q-high-label').textContent = q.high_label || 'High';
+  document.getElementById('q-count-label').textContent = `${currentQ + 1} / ${total}`;
+  document.getElementById('progress-fill').style.width = `${((currentQ + 1) / total) * 100}%`;
+  document.getElementById('prev-btn').style.opacity = currentQ === 0 ? '0.3' : '1';
+
+  // Build 1-10 buttons (two rows of 5)
+  const saved = answers[q.id];
+  const row1 = document.getElementById('rating-row1');
+  const row2 = document.getElementById('rating-row2');
+  row1.innerHTML = '';
+  row2.innerHTML = '';
+
+  for (let v = 1; v <= 10; v++) {
+    const btn = document.createElement('button');
+    btn.className = 'r-btn' + (saved === v ? ' selected' : '');
+    btn.textContent = v;
+    btn.addEventListener('click', () => selectRating(v));
+    (v <= 5 ? row1 : row2).appendChild(btn);
+  }
+
+  document.getElementById('next-btn').disabled = saved === undefined;
+  document.getElementById('next-btn').textContent = currentQ === questions.length - 1 ? 'Next →' : 'Next';
+}
+
+function selectRating(v) {
+  const q = questions[currentQ];
+  answers[q.id] = v;
+  document.querySelectorAll('.r-btn').forEach(b => {
+    b.classList.toggle('selected', parseInt(b.textContent) === v);
+  });
+  document.getElementById('next-btn').disabled = false;
+}
+
+function nextQuestion() {
+  if (currentQ < questions.length - 1) {
+    currentQ++;
+    renderQuestion();
+  } else {
+    showNotes();
+  }
+}
+
+function prevQuestion() {
+  if (currentQ > 0) {
+    currentQ--;
+    renderQuestion();
+  } else {
+    show('landing-screen');
+  }
+}
+
+function showNotes() {
+  if (todayEntry && todayEntry.notes) {
+    document.getElementById('notes-input').value = todayEntry.notes;
+  }
+  show('notes-screen');
+}
+
+function goBack() {
+  renderQuestion();
+  show('q-screen');
+}
+
+async function submitEntry() {
+  const notes = document.getElementById('notes-input').value.trim();
+  const payload = {
+    log_date: todayISO(),
+    answers: answers,
+    notes: notes || null,
+  };
+
+  if (todayEntry) {
+    await db.from('hormone_logs').update(payload).eq('id', todayEntry.id);
+  } else {
+    await db.from('hormone_logs').insert(payload);
+  }
+
+  logsCache = null; // invalidate cache
+  show('done-screen');
+}
+
+// ── TRENDS ────────────────────────────────────────────
+async function showTrends() {
+  show('trends-screen');
+  await loadTrends();
+}
+
+async function loadTrends() {
+  if (!questions.length) {
+    const { data: qs } = await db.from('hormone_questions').select('*').eq('active', true).order('sort_order');
+    questions = qs || [];
+  }
+
+  const since = new Date(Date.now() - (chartWindow - 1) * 86400000).toLocaleDateString('en-CA');
+  const { data: logs } = await db
+    .from('hormone_logs')
+    .select('log_date, answers')
+    .gte('log_date', since)
+    .order('log_date');
+  logsCache = logs || [];
+
+  renderOverview();
+  renderDrilldown();
+}
+
+function setWindow(w, el) {
+  chartWindow = w;
+  document.querySelectorAll('.time-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  logsCache = null;
+  loadTrends();
+}
+
+function buildDateLabels() {
+  const labels = [];
+  for (let i = chartWindow - 1; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    labels.push(d.toLocaleDateString('en-US', { month:'short', day:'numeric' }));
+  }
+  return labels;
+}
+
+function buildISOLabels() {
+  const labels = [];
+  for (let i = chartWindow - 1; i >= 0; i--) {
+    labels.push(new Date(Date.now() - i * 86400000).toLocaleDateString('en-CA'));
+  }
+  return labels;
+}
+
+const PALETTE = [
+  '#c9897a','#7a9e8e','#b8855a','#7a7aae','#ae7a9e',
+  '#7aae8e','#c9a87a','#8e7aae','#7aaeae','#ae897a'
+];
+
+function renderOverview() {
+  const loading = document.getElementById('overview-loading');
+  loading.style.display = 'none';
+
+  const isoLabels = buildISOLabels();
+  const dispLabels = buildDateLabels();
+  const logMap = {};
+  (logsCache || []).forEach(l => { logMap[l.log_date] = l.answers; });
+
+  const datasets = questions.map((q, i) => ({
+    label: q.label,
+    data: isoLabels.map(d => logMap[d]?.[q.id] ?? null),
+    borderColor: PALETTE[i % PALETTE.length],
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    pointRadius: 3,
+    pointHoverRadius: 5,
+    tension: 0.3,
+    spanGaps: true,
+  }));
+
+  if (overviewChart) overviewChart.destroy();
+  const ctx = document.getElementById('overview-chart').getContext('2d');
+  overviewChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: dispLabels, datasets },
+    options: {
+      responsive: true,
+      animation: { duration: 600 },
+      scales: {
+        y: { min: 1, max: 10, ticks: { stepSize: 3, font: { size: 10 } }, grid: { color: '#f0e8e4' } },
+        x: { ticks: { font: { size: 10 }, maxRotation: 0, maxTicksLimit: 7 }, grid: { display: false } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false }
+      }
+    }
+  });
+}
+
+function renderDrilldown() {
+  const list = document.getElementById('drilldown-list');
+  list.innerHTML = '';
+
+  const isoLabels = buildISOLabels();
+  const logMap = {};
+  (logsCache || []).forEach(l => { logMap[l.log_date] = l.answers; });
+
+  questions.forEach((q, i) => {
+    const vals = isoLabels.map(d => logMap[d]?.[q.id] ?? null).filter(v => v !== null);
+    const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '—';
+
+    const card = document.createElement('div');
+    card.className = 'drill-card';
+    card.innerHTML = `
+      <div class="drill-card-header">
+        <div class="drill-name">${q.label}</div>
+        <div class="drill-avg" style="color:${PALETTE[i % PALETTE.length]}">${avg}</div>
+      </div>
+      <div class="drill-low">${q.low_label || ''} → ${q.high_label || ''}</div>
+      <div class="drill-chart-wrap">
+        <canvas id="drill-chart-${q.id}"></canvas>
+      </div>
+    `;
+    list.appendChild(card);
+
+    const ctx = document.getElementById(`drill-chart-${q.id}`).getContext('2d');
+    if (drillCharts[q.id]) drillCharts[q.id].destroy();
+    drillCharts[q.id] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: isoLabels.map(d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' })),
+        datasets: [{
+          data: isoLabels.map(d => logMap[d]?.[q.id] ?? null),
+          borderColor: PALETTE[i % PALETTE.length],
+          backgroundColor: PALETTE[i % PALETTE.length] + '22',
+          fill: true,
+          borderWidth: 2,
+          pointRadius: 2,
+          tension: 0.35,
+          spanGaps: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 400 },
+        scales: {
+          y: { min: 1, max: 10, ticks: { stepSize: 3, font: { size: 9 } }, grid: { color: '#f0e8e4' } },
+          x: { ticks: { font: { size: 9 }, maxTicksLimit: 6, maxRotation: 0 }, grid: { display: false } }
+        },
+        plugins: { legend: { display: false }, tooltip: { enabled: true } }
+      }
+    });
+  });
+}
+
+function showLanding() {
+  show('landing-screen');
+  init();
+}
+
+// ── BOOT ──────────────────────────────────────────────
+window.addEventListener('load', () => {
+  if (sessionStorage.getItem('wt_auth')) {
+    init();
+  } else {
+    show('pw-screen');
+  }
+});
+</script>
+</body>
+</html>

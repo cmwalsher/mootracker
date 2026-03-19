@@ -17,6 +17,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#c9897a">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -714,6 +719,317 @@
     transition: opacity 0.2s;
   }
   .cl-feedback-link:active { opacity: 0.6; }
+  /* ── SETTINGS SCREEN ── */
+  #settings-screen { justify-content: flex-start; padding: 0; overflow-y: auto; }
+
+  .settings-header {
+    width: 100%;
+    max-width: 420px;
+    padding: 52px 20px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    background: rgba(250,246,242,0.96);
+    backdrop-filter: blur(8px);
+    z-index: 5;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 300;
+    flex: 1;
+  }
+  .settings-saved {
+    font-size: 12px;
+    color: var(--sage);
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .settings-saved.visible { opacity: 1; }
+
+  .settings-body {
+    width: 100%;
+    max-width: 420px;
+    padding: 20px 20px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .settings-section {
+    background: var(--warm-white);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .settings-section-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--rose);
+    padding: 16px 18px 8px;
+  }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 18px;
+    border-top: 1px solid var(--border);
+    gap: 12px;
+  }
+  .settings-row:first-of-type { border-top: none; }
+  .settings-row-label {
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 500;
+    flex: 1;
+  }
+  .settings-row-sub {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-top: 2px;
+  }
+
+  /* Toggle switch */
+  .toggle {
+    position: relative;
+    width: 44px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 99px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  }
+  .toggle input:checked + .toggle-slider { background: var(--rose); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+  /* Time picker */
+  .time-input {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--cream);
+    outline: none;
+    width: 100px;
+    text-align: center;
+  }
+  .time-input:focus { border-color: var(--rose-light); }
+
+  /* Date input */
+  .date-input {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--cream);
+    outline: none;
+    width: 130px;
+  }
+  .date-input:focus { border-color: var(--rose-light); }
+
+  /* Number stepper */
+  .stepper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .stepper-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--cream);
+    font-size: 18px;
+    color: var(--rose);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .stepper-btn:active { background: var(--rose-pale); }
+  .stepper-val {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text);
+    min-width: 24px;
+    text-align: center;
+  }
+
+  /* Patch badge on landing */
+  .patch-due-badge {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    border-radius: 14px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 14px;
+  }
+  .patch-due-badge.due {
+    display: flex;
+    background: var(--rose-pale);
+    color: var(--rose);
+  }
+  .patch-due-badge.overdue {
+    display: flex;
+    background: #fdf0e8;
+    color: #c97a4a;
+  }
+
+  /* Settings reset link */
+  .settings-reset {
+    text-align: center;
+    padding: 8px;
+  }
+  .settings-reset button {
+    background: none;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text-light);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* Notification hint */
+  .notif-hint {
+    font-size: 11px;
+    color: var(--text-light);
+    padding: 0 18px 14px;
+    line-height: 1.5;
+  }
+
+  /* Onboarding nudge */
+  .onboard-nudge {
+    background: var(--sage-pale);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--sage);
+    line-height: 1.45;
+  }
+  .onboard-nudge button {
+    background: none;
+    border: none;
+    color: var(--sage);
+    font-size: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    margin-top: -2px;
+  }
+
+  /* Notification permission modal */
+  .notif-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(61,46,42,0.4);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .notif-modal-overlay.hidden { display: none; }
+  .notif-modal {
+    background: var(--warm-white);
+    border-radius: 24px;
+    padding: 28px 24px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 8px 40px rgba(61,46,42,0.15);
+    animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  .notif-modal-icon { font-size: 36px; margin-bottom: 12px; }
+  .notif-modal-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 300;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+  .notif-modal-body {
+    font-size: 14px;
+    color: var(--text-mid);
+    line-height: 1.55;
+    margin-bottom: 20px;
+  }
+  .notif-modal-btns { display: flex; gap: 10px; }
+  .notif-modal-btns .btn { flex: 1; padding: 14px; }
+
+  /* Gear icon button */
+  .gear-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: color 0.2s;
+  }
+  .gear-btn:hover { color: var(--rose); }
+  .landing-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 20px;
+    position: relative;
+  }
+
+  /* Patch shortcut on landing */
+  .patch-shortcut {
+    font-size: 13px;
+    color: var(--text-light);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 0;
+    display: none;
+    font-family: 'DM Sans', sans-serif;
+    transition: color 0.2s;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .patch-shortcut.visible { display: block; }
+  .patch-shortcut:active { color: var(--rose); }
 </style>
 </head>
 <body>
@@ -743,12 +1059,138 @@
 
     <div class="streak-row" id="streak-row"></div>
 
+    <div id="patch-due-badge" class="patch-due-badge">
+      <span>🩹</span>
+      <span id="patch-due-text">Patch change due today</span>
+    </div>
+
     <button class="btn btn-primary" id="start-btn" onclick="startCheckin()">Start today's check-in</button>
+    <button class="patch-shortcut" id="patch-shortcut" onclick="logPatchFromLanding()">Changed my patch today</button>
     <button class="btn btn-secondary" onclick="showTrends()">View my trends →</button>
 
-    <div style="text-align:center;margin-top:20px;">
-      <button class="version-badge" onclick="showChangelog()">v1.0.7</button>
+    <div class="landing-footer">
+      <button class="version-badge" onclick="showChangelog()">v1.1.0</button>
+      <button class="gear-btn" onclick="showSettings()" title="Settings">⚙️</button>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════ NOTIFICATION PERMISSION MODAL ══════════════ -->
+<div id="notif-modal" class="notif-modal-overlay hidden">
+  <div class="notif-modal">
+    <div class="notif-modal-icon">🔔</div>
+    <div class="notif-modal-title">Enable <em style="font-style:italic;color:var(--rose)">notifications</em></div>
+    <div class="notif-modal-body">You'll be asked to allow notifications — tap Allow to continue. If you change your mind, you can turn them off here anytime.</div>
+    <div class="notif-modal-btns">
+      <button class="btn btn-secondary" onclick="cancelNotifModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmNotifModal()">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ SETTINGS SCREEN ══════════════ -->
+<div class="screen hidden" id="settings-screen">
+  <div class="settings-header">
+    <button class="btn-ghost btn" onclick="showLanding()" style="width:auto;padding:8px;">←</button>
+    <div class="settings-title">Settings</div>
+    <div class="settings-saved" id="settings-saved">Saved ✓</div>
+  </div>
+
+  <div class="settings-body">
+
+    <!-- Onboarding nudge -->
+    <div id="onboard-nudge" class="onboard-nudge" style="display:none;">
+      <span>Add this app to your home screen in Safari to enable notifications.</span>
+      <button onclick="dismissOnboardNudge()">✕</button>
+    </div>
+
+    <!-- PATCH TRACKER -->
+    <div class="settings-section">
+      <div class="settings-section-title">Patch Tracker</div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Track patch changes</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="s-patch-on" onchange="onSettingChange('patch-on')">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Change every</div>
+        </div>
+        <div class="stepper">
+          <button class="stepper-btn" onclick="stepInterval(-1)">−</button>
+          <div class="stepper-val"><span id="s-interval-val">3</span> days</div>
+          <button class="stepper-btn" onclick="stepInterval(1)">+</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Last changed</div>
+          <div class="settings-row-sub">Update to when you last changed your patch</div>
+        </div>
+        <input type="date" class="date-input" id="s-last-change" onchange="onSettingChange('last-change')">
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Reminder notification</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="s-patch-notif" onchange="onNotifToggle('patch-notif', this)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-label">Reminder time</div>
+        <input type="time" class="time-input" id="s-patch-time" value="09:00" onchange="onSettingChange('patch-time')">
+      </div>
+      <div class="notif-hint">Notifications require the app to be installed on your home screen and may occasionally be delayed by iOS.</div>
+    </div>
+
+    <!-- DAILY REMINDER -->
+    <div class="settings-section">
+      <div class="settings-section-title">Daily Reminder</div>
+      <div class="settings-row">
+        <div class="settings-row-label">Remind me daily</div>
+        <label class="toggle">
+          <input type="checkbox" id="s-daily-on" onchange="onNotifToggle('daily-on', this)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-label">Reminder time</div>
+        <input type="time" class="time-input" id="s-daily-time" value="09:00" onchange="onSettingChange('daily-time')">
+      </div>
+      <div class="notif-hint">Notifications require the app to be installed on your home screen and may occasionally be delayed by iOS.</div>
+    </div>
+
+    <!-- WEEKLY SUMMARY -->
+    <div class="settings-section">
+      <div class="settings-section-title">Weekly Summary</div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Sunday summary nudge</div>
+          <div class="settings-row-sub">Fires every Sunday</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="s-weekly-on" onchange="onNotifToggle('weekly-on', this)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-label">Reminder time</div>
+        <input type="time" class="time-input" id="s-weekly-time" value="10:00" onchange="onSettingChange('weekly-time')">
+      </div>
+      <div class="notif-hint">Notifications require the app to be installed on your home screen and may occasionally be delayed by iOS.</div>
+    </div>
+
+    <!-- RESET -->
+    <div class="settings-reset">
+      <button onclick="confirmResetSettings()">Reset all settings to defaults</button>
+    </div>
+
   </div>
 </div>
 
@@ -783,6 +1225,12 @@
     </div>
 
     <div class="cl-entries">
+
+      <div class="cl-entry">
+        <div class="cl-version">v1.1.0</div>
+        <div class="cl-name">Settings, Notifications &amp; Patch Tracker</div>
+        <div class="cl-desc">Full settings screen with auto-save. Patch change tracker with day-of badge and terracotta urgency escalation. Push notifications for patch reminders, daily check-in, and weekly summary — all configurable with time pickers. Landing screen shortcut to log patch changes without a full check-in. One-time onboarding nudge for PWA home screen install. Note: notifications require the app to be installed via Safari to home screen and may occasionally be delayed on iOS.</div>
+      </div>
 
       <div class="cl-entry">
         <div class="cl-version">v1.0.7</div>
@@ -1063,14 +1511,18 @@ async function init() {
   }
 
   if (todayEntry) {
-    document.getElementById('already-done-banner').classList.remove('hidden');
     document.getElementById('start-btn').textContent = 'Edit today\'s entry';
     answers = todayEntry.answers || {};
   } else {
-    document.getElementById('already-done-banner').classList.add('hidden');
     document.getElementById('start-btn').textContent = 'Start today\'s check-in';
     answers = {};
   }
+
+  // Apply patch badge and shortcut
+  const s = loadSettings();
+  updatePatchBadge(s);
+  const shortcut = document.getElementById('patch-shortcut');
+  if (shortcut) shortcut.classList.toggle('visible', s.patchOn);
 }
 
 // ── CHECK-IN FLOW ─────────────────────────────────────
@@ -1481,10 +1933,238 @@ function hideChangelog() {
   document.getElementById('changelog-overlay').classList.add('hidden');
 }
 
+// ── SETTINGS ─────────────────────────────────────────
+const SETTINGS_KEY = 'wt_settings';
+const SETTINGS_DEFAULTS = {
+  patchOn:       false,
+  patchInterval: 3,
+  patchLastChange: todayISO(),
+  patchNotif:    false,
+  patchTime:     '09:00',
+  dailyOn:       false,
+  dailyTime:     '09:00',
+  weeklyOn:      false,
+  weeklyTime:    '10:00',
+};
+
+function loadSettings() {
+  try {
+    return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
+  } catch { return Object.assign({}, SETTINGS_DEFAULTS); }
+}
+
+function saveSettings(s) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  showSavedIndicator();
+  applySettings(s);
+}
+
+function showSavedIndicator() {
+  const el = document.getElementById('settings-saved');
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), 1500);
+}
+
+function showSettings() {
+  const s = loadSettings();
+  document.getElementById('s-patch-on').checked     = s.patchOn;
+  document.getElementById('s-interval-val').textContent = s.patchInterval;
+  document.getElementById('s-last-change').value    = s.patchLastChange;
+  document.getElementById('s-patch-notif').checked  = s.patchNotif;
+  document.getElementById('s-patch-time').value     = s.patchTime;
+  document.getElementById('s-daily-on').checked     = s.dailyOn;
+  document.getElementById('s-daily-time').value     = s.dailyTime;
+  document.getElementById('s-weekly-on').checked    = s.weeklyOn;
+  document.getElementById('s-weekly-time').value    = s.weeklyTime;
+
+  // Onboarding nudge
+  const nudgeDismissed = localStorage.getItem('wt_nudge_dismissed');
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+  if (!nudgeDismissed && !isPWA) {
+    document.getElementById('onboard-nudge').style.display = 'flex';
+  }
+
+  show('settings-screen');
+}
+
+function dismissOnboardNudge() {
+  localStorage.setItem('wt_nudge_dismissed', '1');
+  document.getElementById('onboard-nudge').style.display = 'none';
+}
+
+function onSettingChange(key) {
+  const s = loadSettings();
+  if (key === 'patch-on')      s.patchOn       = document.getElementById('s-patch-on').checked;
+  if (key === 'last-change')   s.patchLastChange = document.getElementById('s-last-change').value;
+  if (key === 'patch-time')    s.patchTime     = document.getElementById('s-patch-time').value;
+  if (key === 'daily-time')    s.dailyTime     = document.getElementById('s-daily-time').value;
+  if (key === 'weekly-time')   s.weeklyTime    = document.getElementById('s-weekly-time').value;
+  saveSettings(s);
+}
+
+function stepInterval(delta) {
+  const s = loadSettings();
+  s.patchInterval = Math.max(1, Math.min(14, s.patchInterval + delta));
+  document.getElementById('s-interval-val').textContent = s.patchInterval;
+  saveSettings(s);
+}
+
+// ── NOTIFICATION TOGGLE ───────────────────────────────
+let pendingNotifKey = null;
+let pendingNotifEl  = null;
+
+function onNotifToggle(key, el) {
+  if (el.checked) {
+    // Show permission modal first
+    pendingNotifKey = key;
+    pendingNotifEl  = el;
+    el.checked = false; // revert until confirmed
+    document.getElementById('notif-modal').classList.remove('hidden');
+  } else {
+    const s = loadSettings();
+    if (key === 'patch-notif') s.patchNotif = false;
+    if (key === 'daily-on')    s.dailyOn    = false;
+    if (key === 'weekly-on')   s.weeklyOn   = false;
+    saveSettings(s);
+    cancelNotifications(key);
+  }
+}
+
+function cancelNotifModal() {
+  document.getElementById('notif-modal').classList.add('hidden');
+  pendingNotifKey = null;
+  pendingNotifEl  = null;
+}
+
+async function confirmNotifModal() {
+  document.getElementById('notif-modal').classList.add('hidden');
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    pendingNotifKey = null;
+    pendingNotifEl  = null;
+    return;
+  }
+  if (pendingNotifEl) pendingNotifEl.checked = true;
+  const s = loadSettings();
+  if (pendingNotifKey === 'patch-notif') s.patchNotif = true;
+  if (pendingNotifKey === 'daily-on')    s.dailyOn    = true;
+  if (pendingNotifKey === 'weekly-on')   s.weeklyOn   = true;
+  saveSettings(s);
+  pendingNotifKey = null;
+  pendingNotifEl  = null;
+}
+
+function cancelNotifications(key) {
+  if (!navigator.serviceWorker.controller) return;
+  if (key === 'patch-notif') navigator.serviceWorker.controller.postMessage({ type: 'CANCEL_PATCH' });
+  if (key === 'daily-on')    navigator.serviceWorker.controller.postMessage({ type: 'CANCEL_DAILY' });
+  if (key === 'weekly-on')   navigator.serviceWorker.controller.postMessage({ type: 'CANCEL_WEEKLY' });
+}
+
+// ── APPLY SETTINGS ────────────────────────────────────
+function applySettings(s) {
+  if (!navigator.serviceWorker.controller) return;
+  const sw = navigator.serviceWorker.controller;
+
+  // Patch notification
+  if (s.patchOn && s.patchNotif && s.patchLastChange) {
+    const lastChange = new Date(s.patchLastChange + 'T12:00:00');
+    const dueDate = new Date(lastChange);
+    dueDate.setDate(dueDate.getDate() + s.patchInterval);
+    const [ph, pm] = s.patchTime.split(':').map(Number);
+    sw.postMessage({ type: 'SCHEDULE_PATCH', payload: { hour: ph, minute: pm, dueDate: dueDate.toISOString() } });
+  } else {
+    sw.postMessage({ type: 'CANCEL_PATCH' });
+  }
+
+  // Daily notification
+  if (s.dailyOn) {
+    const [dh, dm] = s.dailyTime.split(':').map(Number);
+    sw.postMessage({ type: 'SCHEDULE_DAILY', payload: { hour: dh, minute: dm } });
+  } else {
+    sw.postMessage({ type: 'CANCEL_DAILY' });
+  }
+
+  // Weekly notification
+  if (s.weeklyOn) {
+    const [wh, wm] = s.weeklyTime.split(':').map(Number);
+    sw.postMessage({ type: 'SCHEDULE_WEEKLY', payload: { hour: wh, minute: wm } });
+  } else {
+    sw.postMessage({ type: 'CANCEL_WEEKLY' });
+  }
+
+  // Update patch badge on landing
+  updatePatchBadge(s);
+
+  // Show/hide patch shortcut
+  const shortcut = document.getElementById('patch-shortcut');
+  if (shortcut) shortcut.classList.toggle('visible', s.patchOn);
+}
+
+function updatePatchBadge(s) {
+  const badge = document.getElementById('patch-due-badge');
+  if (!badge) return;
+  if (!s.patchOn || !s.patchLastChange) {
+    badge.className = 'patch-due-badge';
+    return;
+  }
+  const lastChange = new Date(s.patchLastChange + 'T12:00:00');
+  const dueDate = new Date(lastChange);
+  dueDate.setDate(dueDate.getDate() + s.patchInterval);
+  const today = new Date(todayISO() + 'T12:00:00');
+  const diffDays = Math.round((dueDate - today) / 86400000);
+
+  if (diffDays === 0) {
+    badge.className = 'patch-due-badge due';
+    document.getElementById('patch-due-text').textContent = 'Patch change due today';
+  } else if (diffDays < 0) {
+    badge.className = 'patch-due-badge overdue';
+    document.getElementById('patch-due-text').textContent = `Patch change overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? 's' : ''}`;
+  } else {
+    badge.className = 'patch-due-badge';
+  }
+}
+
+// ── PATCH SHORTCUT FROM LANDING ───────────────────────
+async function logPatchFromLanding() {
+  const today = todayISO();
+  const { data: existing } = await db.from('ht_logs').select('id, events').eq('log_date', today).maybeSingle();
+
+  if (existing) {
+    const events = existing.events || [];
+    if (!events.includes('Patch applied')) events.push('Patch applied');
+    await db.from('ht_logs').update({ events }).eq('id', existing.id);
+  } else {
+    await db.from('ht_logs').insert({ log_date: today, answers: {}, events: ['Patch applied'] });
+  }
+
+  // Update last change date in settings
+  const s = loadSettings();
+  s.patchLastChange = today;
+  saveSettings(s);
+  updatePatchBadge(s);
+
+  // Brief confirmation
+  const btn = document.getElementById('patch-shortcut');
+  btn.textContent = 'Patch logged ✓';
+  setTimeout(() => { btn.textContent = 'Changed my patch today'; }, 1500);
+}
+
+// ── RESET SETTINGS ────────────────────────────────────
+function confirmResetSettings() {
+  if (confirm('Reset all settings to defaults?')) {
+    localStorage.removeItem(SETTINGS_KEY);
+    showSettings();
+    showSavedIndicator();
+  }
+}
+
 // ── BOOT ──────────────────────────────────────────────
 window.addEventListener('load', () => {
   if (sessionStorage.getItem('wt_auth')) {
     init();
+    // Apply saved notification schedules
+    navigator.serviceWorker.ready.then(() => applySettings(loadSettings()));
   } else {
     show('pw-screen');
   }

@@ -981,6 +981,12 @@ async function init() {
   document.getElementById('today-date-label').textContent = formatDisplay(todayISO());
   document.getElementById('greeting-time').textContent = greeting();
 
+  // Reset state immediately while async calls complete
+  document.getElementById('already-done-banner').classList.add('hidden');
+  document.getElementById('start-btn').textContent = 'Start today\'s check-in';
+  todayEntry = null;
+  answers = {};
+
   // Load questions
   const { data: qs } = await db
     .from('ht_questions')

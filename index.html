@@ -700,6 +700,20 @@
     color: var(--text-mid);
     line-height: 1.55;
   }
+
+  .cl-feedback-link {
+    background: none;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--rose);
+    cursor: pointer;
+    padding: 0;
+    letter-spacing: 0.01em;
+    transition: opacity 0.2s;
+  }
+  .cl-feedback-link:active { opacity: 0.6; }
 </style>
 </head>
 <body>
@@ -746,6 +760,28 @@
       <div class="cl-title">What's <em>new</em></div>
       <button class="btn-ghost btn" onclick="hideChangelog()" style="width:auto;padding:8px;">✕</button>
     </div>
+
+    <!-- Feedback link -->
+    <div style="padding:12px 24px;border-bottom:1px solid var(--border);">
+      <button class="cl-feedback-link" onclick="showFeedbackForm()">Idea? Bug? Let me know →</button>
+    </div>
+
+    <!-- Feedback form (hidden by default) -->
+    <div id="cl-feedback-form" style="display:none;padding:20px 24px;border-bottom:1px solid var(--border);">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:400;margin-bottom:14px;color:var(--text);">What's on your <em style="font-style:italic;color:var(--rose)">mind?</em></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="chip" data-cat="Feature idea" onclick="toggleFeedbackCat(this)">Feature idea</button>
+        <button class="chip" data-cat="Bug" onclick="toggleFeedbackCat(this)">Bug</button>
+        <button class="chip" data-cat="Question change" onclick="toggleFeedbackCat(this)">Question change</button>
+      </div>
+      <textarea id="feedback-text" class="notes-area" placeholder="Tell me anything…" rows="4" style="margin-bottom:14px;"></textarea>
+      <button class="btn btn-primary" onclick="submitFeedback()" style="margin-bottom:8px;">Send</button>
+      <button class="btn btn-ghost" onclick="hideFeedbackForm()" style="width:100%;padding:10px;">Cancel</button>
+      <div id="feedback-confirm" style="display:none;text-align:center;padding:12px 0;font-size:15px;color:var(--rose);">
+        Thank you beautiful. Will take a look. ❤️
+      </div>
+    </div>
+
     <div class="cl-entries">
 
       <div class="cl-entry">
@@ -1395,6 +1431,44 @@ function renderDrilldown() {
 function showLanding() {
   show('landing-screen');
   init();
+}
+
+// ── FEEDBACK ─────────────────────────────────────────
+function showFeedbackForm() {
+  document.getElementById('cl-feedback-form').style.display = 'block';
+  document.getElementById('feedback-confirm').style.display = 'none';
+  document.getElementById('feedback-text').value = '';
+  document.querySelectorAll('.chip[data-cat]').forEach(c => c.classList.remove('selected'));
+}
+
+function hideFeedbackForm() {
+  document.getElementById('cl-feedback-form').style.display = 'none';
+}
+
+function toggleFeedbackCat(el) {
+  document.querySelectorAll('.chip[data-cat]').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function submitFeedback() {
+  const text = document.getElementById('feedback-text').value.trim();
+  if (!text) return;
+  const catEl = document.querySelector('.chip[data-cat].selected');
+  const category = catEl ? catEl.dataset.cat : null;
+
+  await db.from('ht_feedback').insert({
+    category,
+    feedback: text,
+    app_version: 'v1.0.7',
+  });
+
+  document.getElementById('feedback-text').value = '';
+  document.querySelectorAll('.chip[data-cat]').forEach(c => c.classList.remove('selected'));
+  document.getElementById('feedback-confirm').style.display = 'block';
+  setTimeout(() => {
+    document.getElementById('feedback-confirm').style.display = 'none';
+    hideFeedbackForm();
+  }, 1000);
 }
 
 // ── CHANGELOG ────────────────────────────────────────

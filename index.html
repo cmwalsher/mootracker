@@ -1069,7 +1069,7 @@
     <button class="btn btn-secondary" onclick="showTrends()">View my trends →</button>
 
     <div class="landing-footer">
-      <button class="version-badge" onclick="showChangelog()">v1.1.0</button>
+      <button class="version-badge" onclick="showChangelog()">v1.1.1</button>
       <button class="gear-btn" onclick="showSettings()" title="Settings">⚙️</button>
     </div>
   </div>
@@ -1227,6 +1227,12 @@
     <div class="cl-entries">
 
       <div class="cl-entry">
+        <div class="cl-version">v1.1.1</div>
+        <div class="cl-name">Side Effects, UX Polish &amp; Auth</div>
+        <div class="cl-desc">Split event chips into two groups — Events and Side Effects. Added Nausea, Fatigue, Patch irritation, and Bloating as side effect chips. Side effects stored separately from events in the database. Auto-advance delay increased to 2 seconds. Feedback confirmation shows for 2 seconds. Password now remembered for one year so she only needs to log in once.</div>
+      </div>
+
+      <div class="cl-entry">
         <div class="cl-version">v1.1.0</div>
         <div class="cl-name">Settings, Notifications &amp; Patch Tracker</div>
         <div class="cl-desc">Full settings screen with auto-save. Patch change tracker with day-of badge and terracotta urgency escalation. Push notifications for patch reminders, daily check-in, and weekly summary — all configurable with time pickers. Landing screen shortcut to log patch changes without a full check-in. One-time onboarding nudge for PWA home screen install. Note: notifications require the app to be installed via Safari to home screen and may occasionally be delayed on iOS.</div>
@@ -1331,21 +1337,35 @@
     <!-- Mark an event — expandable -->
     <div class="event-expander" id="event-expander">
       <button class="event-trigger" id="event-trigger" onclick="toggleEvents()">
-        <span>+ Mark an event</span>
+        <span>+ Mark an event or symptom</span>
         <span class="event-arrow" id="event-arrow">▼</span>
       </button>
       <div class="event-chips" id="event-chips">
+
+        <!-- Events group -->
+        <div style="width:100%;font-size:11px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-light);padding:4px 2px 6px;">Events</div>
         <button class="chip" data-event="Doctor visit"      onclick="toggleChip(this)">Doctor visit</button>
         <button class="chip" data-event="Intimacy"          onclick="toggleChip(this)">Intimacy</button>
         <button class="chip" data-event="High stress day"   onclick="toggleChip(this)">High stress day</button>
         <button class="chip" data-event="Travel day"        onclick="toggleChip(this)">Travel day</button>
         <button class="chip" data-event="Hot flash episode" onclick="toggleChip(this)">Hot flash episode</button>
-        <button class="chip" data-event="Headache"          onclick="toggleChip(this)">Headache</button>
         <button class="chip" data-event="Mood episode"      onclick="toggleChip(this)">Mood episode</button>
         <button class="chip" data-event="Felt great"        onclick="toggleChip(this)">Felt great ✨</button>
-        <button class="chip" id="custom-chip"               onclick="toggleCustom(this)">+ Custom…</button>
+        <button class="chip" id="custom-event-chip"         onclick="toggleCustomInput('custom-event-chip','custom-event-input')">+ Custom…</button>
         <input class="custom-event-input" id="custom-event-input" type="text"
                placeholder="Describe the event…" style="display:none">
+
+        <!-- Side effects group -->
+        <div style="width:100%;font-size:11px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-light);padding:12px 2px 6px;">Side Effects</div>
+        <button class="chip" data-effect="Headache"         onclick="toggleChip(this)">Headache</button>
+        <button class="chip" data-effect="Nausea"           onclick="toggleChip(this)">Nausea</button>
+        <button class="chip" data-effect="Fatigue"          onclick="toggleChip(this)">Fatigue</button>
+        <button class="chip" data-effect="Patch irritation" onclick="toggleChip(this)">Patch irritation</button>
+        <button class="chip" data-effect="Bloating"         onclick="toggleChip(this)">Bloating</button>
+        <button class="chip" id="custom-effect-chip"        onclick="toggleCustomInput('custom-effect-chip','custom-effect-input')">+ Custom…</button>
+        <input class="custom-event-input" id="custom-effect-input" type="text"
+               placeholder="Describe the symptom…" style="display:none">
+
       </div>
     </div>
 
@@ -1450,13 +1470,20 @@ function show(id) {
 }
 
 // ── PASSWORD ──────────────────────────────────────────
+function isAuthed() {
+  const ts = localStorage.getItem('wt_auth_ts');
+  if (!ts) return false;
+  const ONE_YEAR = 365 * 24 * 60 * 60 * 1000;
+  return (Date.now() - parseInt(ts)) < ONE_YEAR;
+}
+
 document.getElementById('pw-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') checkPassword();
 });
 function checkPassword() {
   const val = document.getElementById('pw-input').value;
   if (val === APP_PASSWORD) {
-    sessionStorage.setItem('wt_auth', '1');
+    localStorage.setItem('wt_auth_ts', Date.now().toString());
     init();
   } else {
     document.getElementById('pw-error').textContent = 'That password didn\'t work — try again.';
@@ -1586,7 +1613,7 @@ function selectRating(v) {
   autoAdvanceTimer = setTimeout(() => {
     autoAdvanceTimer = null;
     nextQuestion();
-  }, 600);
+  }, 2000);
 }
 
 function passQuestion() {
@@ -1620,29 +1647,43 @@ function showNotes() {
   const patchSelected = todayEntry?.events?.includes('Patch applied') || false;
   setPatchState(patchSelected);
 
-  // Reset chips
+  // Reset all chips and custom inputs
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
-  document.getElementById('custom-chip').classList.remove('selected');
   document.getElementById('custom-event-input').style.display = 'none';
   document.getElementById('custom-event-input').value = '';
+  document.getElementById('custom-effect-input').style.display = 'none';
+  document.getElementById('custom-effect-input').value = '';
 
-  // Restore previously saved events (edit mode)
+  // Restore events (edit mode)
   if (todayEntry?.events) {
     todayEntry.events.forEach(ev => {
       const chip = document.querySelector(`.chip[data-event="${ev}"]`);
       if (chip) chip.classList.add('selected');
     });
     if (todayEntry.custom_event) {
-      document.getElementById('custom-chip').classList.add('selected');
+      document.getElementById('custom-event-chip').classList.add('selected');
       document.getElementById('custom-event-input').style.display = 'block';
       document.getElementById('custom-event-input').value = todayEntry.custom_event;
+    }
+  }
+
+  // Restore side effects (edit mode)
+  if (todayEntry?.side_effects) {
+    todayEntry.side_effects.forEach(ef => {
+      const chip = document.querySelector(`.chip[data-effect="${ef}"]`);
+      if (chip) chip.classList.add('selected');
+    });
+    if (todayEntry.custom_effect) {
+      document.getElementById('custom-effect-chip').classList.add('selected');
+      document.getElementById('custom-effect-input').style.display = 'block';
+      document.getElementById('custom-effect-input').value = todayEntry.custom_effect;
     }
   }
 
   // Restore notes
   document.getElementById('notes-input').value = todayEntry?.notes || '';
 
-  // Collapse event expander
+  // Collapse expander
   document.getElementById('event-expander').classList.remove('open');
   document.getElementById('event-trigger').classList.remove('open');
   document.getElementById('event-chips').classList.remove('open');
@@ -1683,11 +1724,12 @@ function toggleChip(el) {
   el.classList.toggle('selected');
 }
 
-function toggleCustom(el) {
-  el.classList.toggle('selected');
-  const input = document.getElementById('custom-event-input');
-  input.style.display = el.classList.contains('selected') ? 'block' : 'none';
-  if (el.classList.contains('selected')) input.focus();
+function toggleCustomInput(chipId, inputId) {
+  const chip  = document.getElementById(chipId);
+  const input = document.getElementById(inputId);
+  chip.classList.toggle('selected');
+  input.style.display = chip.classList.contains('selected') ? 'block' : 'none';
+  if (chip.classList.contains('selected')) input.focus();
   else input.value = '';
 }
 
@@ -1704,18 +1746,22 @@ async function submitEntry() {
   if (document.getElementById('patch-btn').classList.contains('selected')) {
     events.push('Patch applied');
   }
-  document.querySelectorAll('.chip[data-event].selected').forEach(c => {
-    events.push(c.dataset.event);
-  });
+  document.querySelectorAll('.chip[data-event].selected').forEach(c => events.push(c.dataset.event));
+  const customEventVal = document.getElementById('custom-event-input').value.trim();
 
-  const customVal = document.getElementById('custom-event-input').value.trim();
+  // Collect side effects
+  const sideEffects = [];
+  document.querySelectorAll('.chip[data-effect].selected').forEach(c => sideEffects.push(c.dataset.effect));
+  const customEffectVal = document.getElementById('custom-effect-input').value.trim();
 
   const payload = {
-    log_date:     todayISO(),
-    answers:      answers,
-    notes:        notes || null,
-    events:       events.length ? events : null,
-    custom_event: customVal || null,
+    log_date:      todayISO(),
+    answers:       answers,
+    notes:         notes || null,
+    events:        events.length ? events : null,
+    custom_event:  customEventVal || null,
+    side_effects:  sideEffects.length ? sideEffects : null,
+    custom_effect: customEffectVal || null,
   };
 
   if (todayEntry) {
@@ -1911,7 +1957,7 @@ async function submitFeedback() {
   await db.from('ht_feedback').insert({
     category,
     feedback: text,
-    app_version: 'v1.0.7',
+    app_version: 'v1.1.1',
   });
 
   document.getElementById('feedback-text').value = '';
@@ -1920,7 +1966,7 @@ async function submitFeedback() {
   setTimeout(() => {
     document.getElementById('feedback-confirm').style.display = 'none';
     hideFeedbackForm();
-  }, 1000);
+  }, 2000);
 }
 
 // ── CHANGELOG ────────────────────────────────────────
@@ -2161,9 +2207,8 @@ function confirmResetSettings() {
 
 // ── BOOT ──────────────────────────────────────────────
 window.addEventListener('load', () => {
-  if (sessionStorage.getItem('wt_auth')) {
+  if (isAuthed()) {
     init();
-    // Apply saved notification schedules
     navigator.serviceWorker.ready.then(() => applySettings(loadSettings()));
   } else {
     show('pw-screen');

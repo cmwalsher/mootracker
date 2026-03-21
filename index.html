@@ -1786,7 +1786,8 @@ async function loadTrends() {
     questions = qs || [];
   }
 
-  const since = new Date(Date.now() - (chartWindow - 1) * 86400000).toLocaleDateString('en-CA');
+  const sinceDate = new Date(Date.now() - (chartWindow - 1) * 86400000);
+  const since = `${sinceDate.getFullYear()}-${String(sinceDate.getMonth()+1).padStart(2,'0')}-${String(sinceDate.getDate()).padStart(2,'0')}`;
   const { data: logs } = await db
     .from('ht_logs')
     .select('log_date, answers')

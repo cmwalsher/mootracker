@@ -1023,12 +1023,13 @@
     background: var(--rose-pale);
     border: 1.5px solid var(--rose-light);
     border-radius: 16px;
-    padding: 12px 16px;
-    margin-bottom: 12px;
+    padding: 10px 16px;
+    margin-top: 10px;
+    margin-bottom: 10px;
     cursor: pointer;
     transition: all 0.2s;
     font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--rose);
     text-align: left;
@@ -1069,7 +1070,7 @@
       <span id="patch-due-text">Patch change due today</span>
     </div>
 
-    <button class="btn btn-primary" id="start-btn" onclick="startCheckin()">Start today's check-in</button>
+    <button class="btn btn-primary" id="start-btn" onclick="startCheckin()" style="margin-bottom:4px;">Start today's check-in</button>
     <button class="patch-shortcut" id="patch-shortcut" onclick="logPatchFromLanding()">
       <span>🩹</span>
       <span>I changed my patch today</span>

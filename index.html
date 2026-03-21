@@ -1500,7 +1500,6 @@ async function init() {
   // Reset state immediately while async calls complete
   document.getElementById('start-btn').textContent = 'Start today\'s check-in';
   todayEntry = null;
-  answers = {};
 
   // Load questions
   const { data: qs } = await db
@@ -1929,7 +1928,10 @@ function renderDrilldown() {
 
 function showLanding() {
   show('landing-screen');
-  init();
+  // Only reinit if not mid check-in to avoid wiping answers
+  if (!document.getElementById('q-screen') || document.getElementById('q-screen').classList.contains('hidden')) {
+    init();
+  }
 }
 
 // ── FEEDBACK ─────────────────────────────────────────

@@ -1036,6 +1036,61 @@
   }
   .patch-shortcut.visible { display: flex; }
   .patch-shortcut:active { background: var(--rose-light); }
+  /* Day of week chips */
+  .day-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 4px 18px 14px;
+  }
+  .day-chip {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-mid);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.18s;
+  }
+  .day-chip.selected {
+    background: var(--rose);
+    border-color: var(--rose);
+    color: white;
+  }
+  .day-chip:active { transform: scale(0.92); }
+
+  /* Mode selector */
+  .mode-selector {
+    display: flex;
+    gap: 6px;
+    padding: 12px 18px 4px;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .mode-btn.active {
+    background: var(--rose);
+    border-color: var(--rose);
+    color: white;
+  }
 </style>
 </head>
 <body>
@@ -1078,7 +1133,7 @@
     <button class="btn btn-secondary" onclick="showTrends()">View my trends →</button>
 
     <div class="landing-footer">
-      <button class="version-badge" onclick="showChangelog()">v1.1.2</button>
+      <button class="version-badge" onclick="showChangelog()">v1.1.4</button>
       <button class="gear-btn" onclick="showSettings()" title="Settings">⚙️</button>
     </div>
   </div>
@@ -1125,23 +1180,60 @@
           <span class="toggle-slider"></span>
         </label>
       </div>
-      <div class="settings-row">
-        <div>
-          <div class="settings-row-label">Change every</div>
+
+      <!-- Mode selector -->
+      <div class="mode-selector">
+        <button class="mode-btn active" id="mode-btn-interval" onclick="setPatchMode('interval')">Every X days</button>
+        <button class="mode-btn" id="mode-btn-days" onclick="setPatchMode('days')">Specific days</button>
+      </div>
+
+      <!-- Mode 1: Interval -->
+      <div id="patch-mode-interval">
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Change every</div>
+          </div>
+          <div class="stepper">
+            <button class="stepper-btn" onclick="stepInterval(-1)">−</button>
+            <div class="stepper-val"><span id="s-interval-val">3</span> days</div>
+            <button class="stepper-btn" onclick="stepInterval(1)">+</button>
+          </div>
         </div>
-        <div class="stepper">
-          <button class="stepper-btn" onclick="stepInterval(-1)">−</button>
-          <div class="stepper-val"><span id="s-interval-val">3</span> days</div>
-          <button class="stepper-btn" onclick="stepInterval(1)">+</button>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Last changed</div>
+            <div class="settings-row-sub">Update to when you last changed your patch</div>
+          </div>
+          <input type="date" class="date-input" id="s-last-change" onchange="onSettingChange('last-change')">
         </div>
       </div>
-      <div class="settings-row">
-        <div>
-          <div class="settings-row-label">Last changed</div>
-          <div class="settings-row-sub">Update to when you last changed your patch</div>
+
+      <!-- Mode 2: Specific days -->
+      <div id="patch-mode-days" style="display:none;">
+        <div class="settings-row" style="border-top:1px solid var(--border);">
+          <div>
+            <div class="settings-row-label">Change on these days</div>
+            <div class="settings-row-sub">Tap to select</div>
+          </div>
         </div>
-        <input type="date" class="date-input" id="s-last-change" onchange="onSettingChange('last-change')">
+        <div class="day-chips">
+          <button class="day-chip" data-day="1" onclick="toggleDayChip(this)">M</button>
+          <button class="day-chip" data-day="2" onclick="toggleDayChip(this)">T</button>
+          <button class="day-chip" data-day="3" onclick="toggleDayChip(this)">W</button>
+          <button class="day-chip" data-day="4" onclick="toggleDayChip(this)">T</button>
+          <button class="day-chip" data-day="5" onclick="toggleDayChip(this)">F</button>
+          <button class="day-chip" data-day="6" onclick="toggleDayChip(this)">S</button>
+          <button class="day-chip" data-day="0" onclick="toggleDayChip(this)">S</button>
+        </div>
+        <div class="settings-row" style="border-top:1px solid var(--border);">
+          <div>
+            <div class="settings-row-label">Last confirmed</div>
+            <div class="settings-row-sub">When you last changed your patch</div>
+          </div>
+          <input type="date" class="date-input" id="s-last-change-days" onchange="onSettingChange('last-change-days')">
+        </div>
       </div>
+
       <div class="settings-row">
         <div>
           <div class="settings-row-label">Reminder notification</div>
@@ -1234,6 +1326,18 @@
     </div>
 
     <div class="cl-entries">
+
+      <div class="cl-entry">
+        <div class="cl-version">v1.1.4</div>
+        <div class="cl-name">Patch Schedule Mode 2</div>
+        <div class="cl-desc">Added day-of-week patch scheduling — select specific days (e.g. Monday &amp; Thursday) instead of every X days. Badge appears on scheduled days, escalates to terracotta if not confirmed by the next day. Both modes supported and switchable in settings. Push notifications updated to fire on each selected day.</div>
+      </div>
+
+      <div class="cl-entry">
+        <div class="cl-version">v1.1.3</div>
+        <div class="cl-name">Housekeeping</div>
+        <div class="cl-desc">Removed haptic feedback from the roadmap — not supported on iOS. Backlog cleanup.</div>
+      </div>
 
       <div class="cl-entry">
         <div class="cl-version">v1.1.2</div>
@@ -1975,7 +2079,7 @@ async function submitFeedback() {
   await db.from('ht_feedback').insert({
     category,
     feedback: text,
-    app_version: 'v1.1.2',
+    app_version: 'v1.1.4',
   });
 
   document.getElementById('feedback-text').value = '';
@@ -2000,15 +2104,17 @@ function hideChangelog() {
 // ── SETTINGS ─────────────────────────────────────────
 const SETTINGS_KEY = 'wt_settings';
 const SETTINGS_DEFAULTS = {
-  patchOn:       false,
-  patchInterval: 3,
-  patchLastChange: todayISO(),
-  patchNotif:    false,
-  patchTime:     '09:00',
-  dailyOn:       false,
-  dailyTime:     '09:00',
-  weeklyOn:      false,
-  weeklyTime:    '10:00',
+  patchOn:          false,
+  patchMode:        'interval',
+  patchInterval:    3,
+  patchLastChange:  todayISO(),
+  patchDays:        [],
+  patchNotif:       false,
+  patchTime:        '09:00',
+  dailyOn:          false,
+  dailyTime:        '09:00',
+  weeklyOn:         false,
+  weeklyTime:       '10:00',
 };
 
 function loadSettings() {
@@ -2034,12 +2140,21 @@ function showSettings() {
   document.getElementById('s-patch-on').checked     = s.patchOn;
   document.getElementById('s-interval-val').textContent = s.patchInterval;
   document.getElementById('s-last-change').value    = s.patchLastChange;
+  document.getElementById('s-last-change-days').value = s.patchLastChange;
   document.getElementById('s-patch-notif').checked  = s.patchNotif;
   document.getElementById('s-patch-time').value     = s.patchTime;
   document.getElementById('s-daily-on').checked     = s.dailyOn;
   document.getElementById('s-daily-time').value     = s.dailyTime;
   document.getElementById('s-weekly-on').checked    = s.weeklyOn;
   document.getElementById('s-weekly-time').value    = s.weeklyTime;
+
+  // Mode selector
+  setPatchModeUI(s.patchMode);
+
+  // Day chips
+  document.querySelectorAll('.day-chip').forEach(c => {
+    c.classList.toggle('selected', s.patchDays.includes(parseInt(c.dataset.day)));
+  });
 
   // Onboarding nudge
   const nudgeDismissed = localStorage.getItem('wt_nudge_dismissed');
@@ -2056,13 +2171,36 @@ function dismissOnboardNudge() {
   document.getElementById('onboard-nudge').style.display = 'none';
 }
 
+function setPatchMode(mode) {
+  const s = loadSettings();
+  s.patchMode = mode;
+  saveSettings(s);
+  setPatchModeUI(mode);
+}
+
+function setPatchModeUI(mode) {
+  document.getElementById('mode-btn-interval').classList.toggle('active', mode === 'interval');
+  document.getElementById('mode-btn-days').classList.toggle('active', mode === 'days');
+  document.getElementById('patch-mode-interval').style.display = mode === 'interval' ? 'block' : 'none';
+  document.getElementById('patch-mode-days').style.display = mode === 'days' ? 'block' : 'none';
+}
+
+function toggleDayChip(el) {
+  el.classList.toggle('selected');
+  const s = loadSettings();
+  s.patchDays = Array.from(document.querySelectorAll('.day-chip.selected'))
+    .map(c => parseInt(c.dataset.day));
+  saveSettings(s);
+}
+
 function onSettingChange(key) {
   const s = loadSettings();
-  if (key === 'patch-on')      s.patchOn       = document.getElementById('s-patch-on').checked;
-  if (key === 'last-change')   s.patchLastChange = document.getElementById('s-last-change').value;
-  if (key === 'patch-time')    s.patchTime     = document.getElementById('s-patch-time').value;
-  if (key === 'daily-time')    s.dailyTime     = document.getElementById('s-daily-time').value;
-  if (key === 'weekly-time')   s.weeklyTime    = document.getElementById('s-weekly-time').value;
+  if (key === 'patch-on')         s.patchOn         = document.getElementById('s-patch-on').checked;
+  if (key === 'last-change')      s.patchLastChange  = document.getElementById('s-last-change').value;
+  if (key === 'last-change-days') s.patchLastChange  = document.getElementById('s-last-change-days').value;
+  if (key === 'patch-time')       s.patchTime        = document.getElementById('s-patch-time').value;
+  if (key === 'daily-time')       s.dailyTime        = document.getElementById('s-daily-time').value;
+  if (key === 'weekly-time')      s.weeklyTime       = document.getElementById('s-weekly-time').value;
   saveSettings(s);
 }
 
@@ -2131,12 +2269,16 @@ function applySettings(s) {
   const sw = navigator.serviceWorker.controller;
 
   // Patch notification
-  if (s.patchOn && s.patchNotif && s.patchLastChange) {
-    const lastChange = new Date(s.patchLastChange + 'T12:00:00');
-    const dueDate = new Date(lastChange);
-    dueDate.setDate(dueDate.getDate() + s.patchInterval);
+  if (s.patchOn && s.patchNotif) {
     const [ph, pm] = s.patchTime.split(':').map(Number);
-    sw.postMessage({ type: 'SCHEDULE_PATCH', payload: { hour: ph, minute: pm, dueDate: dueDate.toISOString() } });
+    if (s.patchMode === 'interval' && s.patchLastChange) {
+      const lastChange = new Date(s.patchLastChange + 'T12:00:00');
+      const dueDate = new Date(lastChange);
+      dueDate.setDate(dueDate.getDate() + s.patchInterval);
+      sw.postMessage({ type: 'SCHEDULE_PATCH', payload: { hour: ph, minute: pm, dueDate: dueDate.toISOString() } });
+    } else if (s.patchMode === 'days' && s.patchDays.length) {
+      sw.postMessage({ type: 'SCHEDULE_PATCH_DAYS', payload: { hour: ph, minute: pm, days: s.patchDays } });
+    }
   } else {
     sw.postMessage({ type: 'CANCEL_PATCH' });
   }
@@ -2168,24 +2310,65 @@ function applySettings(s) {
 function updatePatchBadge(s) {
   const badge = document.getElementById('patch-due-badge');
   if (!badge) return;
-  if (!s.patchOn || !s.patchLastChange) {
+  if (!s.patchOn) {
     badge.className = 'patch-due-badge';
     return;
   }
-  const lastChange = new Date(s.patchLastChange + 'T12:00:00');
-  const dueDate = new Date(lastChange);
-  dueDate.setDate(dueDate.getDate() + s.patchInterval);
-  const today = new Date(todayISO() + 'T12:00:00');
-  const diffDays = Math.round((dueDate - today) / 86400000);
 
-  if (diffDays === 0) {
-    badge.className = 'patch-due-badge due';
-    document.getElementById('patch-due-text').textContent = 'Patch change due today';
-  } else if (diffDays < 0) {
-    badge.className = 'patch-due-badge overdue';
-    document.getElementById('patch-due-text').textContent = `Patch change overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? 's' : ''}`;
+  const todayDay = new Date().getDay(); // 0=Sun, 1=Mon...
+  const today = new Date(todayISO() + 'T12:00:00');
+
+  if (s.patchMode === 'days') {
+    if (!s.patchDays || !s.patchDays.length) {
+      badge.className = 'patch-due-badge';
+      return;
+    }
+    const lastChange = s.patchLastChange ? new Date(s.patchLastChange + 'T12:00:00') : null;
+    const confirmedToday = lastChange && lastChange.toDateString() === today.toDateString();
+
+    if (confirmedToday) {
+      // Already confirmed today — no badge
+      badge.className = 'patch-due-badge';
+      return;
+    }
+
+    if (s.patchDays.includes(todayDay)) {
+      // Due today and not confirmed
+      badge.className = 'patch-due-badge due';
+      document.getElementById('patch-due-text').textContent = 'Patch change due today';
+    } else {
+      // Check if yesterday was a scheduled day and wasn't confirmed
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayDay = yesterday.getDay();
+      const confirmedYesterday = lastChange && lastChange.toDateString() === yesterday.toDateString();
+      if (s.patchDays.includes(yesterdayDay) && !confirmedYesterday) {
+        badge.className = 'patch-due-badge overdue';
+        document.getElementById('patch-due-text').textContent = 'Patch change not confirmed — please check';
+      } else {
+        badge.className = 'patch-due-badge';
+      }
+    }
   } else {
-    badge.className = 'patch-due-badge';
+    // Mode 1: interval
+    if (!s.patchLastChange) {
+      badge.className = 'patch-due-badge';
+      return;
+    }
+    const lastChange = new Date(s.patchLastChange + 'T12:00:00');
+    const dueDate = new Date(lastChange);
+    dueDate.setDate(dueDate.getDate() + s.patchInterval);
+    const diffDays = Math.round((dueDate - today) / 86400000);
+
+    if (diffDays === 0) {
+      badge.className = 'patch-due-badge due';
+      document.getElementById('patch-due-text').textContent = 'Patch change due today';
+    } else if (diffDays < 0) {
+      badge.className = 'patch-due-badge overdue';
+      document.getElementById('patch-due-text').textContent = `Patch change overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? 's' : ''}`;
+    } else {
+      badge.className = 'patch-due-badge';
+    }
   }
 }
 

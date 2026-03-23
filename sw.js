@@ -1,5 +1,5 @@
 // ── WELLNESS TRACKER SERVICE WORKER ──────────────────
-// v1.1.0 — handles local notification scheduling
+// v1.1.4 — adds day-of-week patch scheduling (Mode 2)
 // Update this file only when notification logic changes.
 // All UI/feature changes belong in index.html.
 
@@ -14,12 +14,13 @@ self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('message', e => {
   const { type, payload } = e.data || {};
   switch (type) {
-    case 'SCHEDULE_PATCH':    schedulePatch(payload);   break;
-    case 'SCHEDULE_DAILY':    scheduleDaily(payload);   break;
-    case 'SCHEDULE_WEEKLY':   scheduleWeekly(payload);  break;
-    case 'CANCEL_PATCH':      cancelAlarm('patch');     break;
-    case 'CANCEL_DAILY':      cancelAlarm('daily');     break;
-    case 'CANCEL_WEEKLY':     cancelAlarm('weekly');    break;
+    case 'SCHEDULE_PATCH':      schedulePatch(payload);     break;
+    case 'SCHEDULE_PATCH_DAYS': schedulePatchDays(payload); break;
+    case 'SCHEDULE_DAILY':      scheduleDaily(payload);     break;
+    case 'SCHEDULE_WEEKLY':     scheduleWeekly(payload);    break;
+    case 'CANCEL_PATCH':        cancelAlarm('patch');       break;
+    case 'CANCEL_DAILY':        cancelAlarm('daily');       break;
+    case 'CANCEL_WEEKLY':       cancelAlarm('weekly');      break;
   }
 });
 
@@ -46,7 +47,34 @@ function cancelAlarm(key) {
   }
 }
 
-// ── PATCH REMINDER ────────────────────────────────────
+// ── PATCH REMINDER (DAY OF WEEK) ──────────────────────
+function schedulePatchDays({ hour, minute, days }) {
+  cancelAlarm('patch');
+  const now = new Date();
+  // Find next scheduled day
+  let fire = new Date();
+  fire.setHours(hour, minute, 0, 0);
+  for (let i = 0; i < 7; i++) {
+    const candidate = new Date(fire);
+    candidate.setDate(fire.getDate() + i);
+    if (days.includes(candidate.getDay()) && candidate > now) {
+      const delay = candidate - now;
+      alarms['patch'] = setTimeout(() => {
+        self.registration.showNotification('Wellness Tracker 🌸', {
+          body: 'Time to change your patch today.',
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag: 'patch',
+        });
+        // Reschedule for next occurrence
+        schedulePatchDays({ hour, minute, days });
+      }, delay);
+      return;
+    }
+  }
+}
+
+// ── PATCH REMINDER (INTERVAL) ─────────────────────────
 function schedulePatch({ hour, minute, dueDate }) {
   cancelAlarm('patch');
   const now = new Date();

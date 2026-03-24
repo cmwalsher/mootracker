@@ -1655,9 +1655,12 @@ async function init() {
     row.appendChild(dot);
   }
 
-  if (todayEntry) {
+  // Treat entry with null answers (patch-only log) as fresh check-in
+  const hasAnswers = todayEntry && todayEntry.answers && Object.keys(todayEntry.answers).length > 0;
+
+  if (hasAnswers) {
     document.getElementById('start-btn').textContent = 'Edit today\'s entry';
-    answers = todayEntry.answers || {};
+    answers = todayEntry.answers;
   } else {
     document.getElementById('start-btn').textContent = 'Start today\'s check-in';
     answers = {};
@@ -1882,8 +1885,15 @@ async function submitEntry() {
     custom_effect: customEffectVal || null,
   };
 
-  if (todayEntry) {
-    await db.from('ht_logs').update(payload).eq('id', todayEntry.id);
+  // Always re-fetch today's row fresh to avoid stale todayEntry ID
+  const { data: freshEntry } = await db
+    .from('ht_logs')
+    .select('id')
+    .eq('log_date', todayISO())
+    .maybeSingle();
+
+  if (freshEntry) {
+    await db.from('ht_logs').update(payload).eq('id', freshEntry.id);
   } else {
     await db.from('ht_logs').insert(payload);
   }
@@ -2382,8 +2392,15 @@ async function logPatchFromLanding() {
     const events = existing.events || [];
     if (!events.includes('Patch applied')) events.push('Patch applied');
     await db.from('ht_logs').update({ events }).eq('id', existing.id);
+    // Keep todayEntry in sync
+    if (todayEntry) todayEntry.events = events;
   } else {
-    await db.from('ht_logs').insert({ log_date: today, answers: {}, events: ['Patch applied'] });
+    const { data: inserted } = await db.from('ht_logs').insert({
+      log_date: today,
+      answers: null,
+      events: ['Patch applied']
+    }).select().single();
+    // Don't set todayEntry here — answers are null, check-in should still be treated as fresh
   }
 
   // Update last change date in settings

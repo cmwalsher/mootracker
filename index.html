@@ -1937,7 +1937,8 @@ function buildDateLabels() {
 function buildISOLabels() {
   const labels = [];
   for (let i = chartWindow - 1; i >= 0; i--) {
-    labels.push(new Date(Date.now() - i * 86400000).toLocaleDateString('en-CA'));
+    const d = new Date(Date.now() - i * 86400000);
+    labels.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
   }
   return labels;
 }

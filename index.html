@@ -1888,9 +1888,16 @@ async function submitEntry() {
   // Always re-fetch today's row fresh to avoid stale todayEntry ID
   const { data: freshEntry } = await db
     .from('ht_logs')
-    .select('id')
+    .select('id, answers')
     .eq('log_date', todayISO())
     .maybeSingle();
+
+  // Merge: start with existing saved answers, overlay session answers on top
+  // This preserves answers from previous partial saves
+  const mergedAnswers = Object.assign({}, freshEntry?.answers || {}, answers);
+
+  // Replace null-only answers object with proper merged one
+  payload.answers = mergedAnswers;
 
   if (freshEntry) {
     await db.from('ht_logs').update(payload).eq('id', freshEntry.id);

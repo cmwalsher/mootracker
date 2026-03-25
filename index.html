@@ -1684,6 +1684,24 @@ async function startCheckin() {
     questions = qs || [];
   }
   if (!questions.length) return;
+
+  // Always re-fetch today's existing answers fresh — don't rely on stale global state
+  const { data: existing } = await db
+    .from('ht_logs')
+    .select('*')
+    .eq('log_date', todayISO())
+    .maybeSingle();
+
+  if (existing && existing.answers && Object.values(existing.answers).some(v => v !== null)) {
+    // Edit mode — pre-load existing answers
+    answers = existing.answers;
+    todayEntry = existing;
+  } else {
+    // Fresh check-in — start clean but keep todayEntry if it exists (for patch event etc)
+    answers = {};
+    todayEntry = existing || null;
+  }
+
   currentQ = 0;
   renderQuestion();
   show('q-screen');
@@ -2066,7 +2084,9 @@ function renderDrilldown() {
 function showLanding() {
   show('landing-screen');
   // Only reinit if not mid check-in to avoid wiping answers
-  if (!document.getElementById('q-screen') || document.getElementById('q-screen').classList.contains('hidden')) {
+  const qHidden = document.getElementById('q-screen').classList.contains('hidden');
+  const notesHidden = document.getElementById('notes-screen').classList.contains('hidden');
+  if (qHidden && notesHidden) {
     init();
   }
 }

@@ -1914,9 +1914,6 @@ async function submitEntry() {
   const mergedAnswers = Object.assign({}, freshEntry?.answers || {}, answers);
   payload.answers = mergedAnswers;
 
-  // DEBUG — remove after fix
-  alert('DEBUG answers at submit:\n' + JSON.stringify(answers) + '\n\nmerged:\n' + JSON.stringify(mergedAnswers) + '\n\nfreshEntry answers:\n' + JSON.stringify(freshEntry?.answers));
-
   if (freshEntry) {
     await db.from('ht_logs').update(payload).eq('id', freshEntry.id);
   } else {
@@ -1929,6 +1926,7 @@ async function submitEntry() {
 
 // ── TRENDS ────────────────────────────────────────────
 async function showTrends() {
+  logsCache = null;
   show('trends-screen');
   await loadTrends();
 }

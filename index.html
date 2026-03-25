@@ -1911,11 +1911,11 @@ async function submitEntry() {
     .maybeSingle();
 
   // Merge: start with existing saved answers, overlay session answers on top
-  // This preserves answers from previous partial saves
   const mergedAnswers = Object.assign({}, freshEntry?.answers || {}, answers);
-
-  // Replace null-only answers object with proper merged one
   payload.answers = mergedAnswers;
+
+  // DEBUG — remove after fix
+  alert('DEBUG answers at submit:\n' + JSON.stringify(answers) + '\n\nmerged:\n' + JSON.stringify(mergedAnswers) + '\n\nfreshEntry answers:\n' + JSON.stringify(freshEntry?.answers));
 
   if (freshEntry) {
     await db.from('ht_logs').update(payload).eq('id', freshEntry.id);

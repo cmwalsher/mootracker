@@ -1224,7 +1224,7 @@
     <button class="btn btn-secondary" onclick="showTrends()">View my trends →</button>
 
     <div class="landing-footer">
-      <button class="version-badge" onclick="showChangelog()">v1.2.0</button>
+      <button class="version-badge" onclick="showChangelog()">v1.2.1</button>
       <button class="gear-btn" onclick="showSettings()" title="Settings">⚙️</button>
     </div>
   </div>
@@ -1417,6 +1417,12 @@
     </div>
 
     <div class="cl-entries">
+
+      <div class="cl-entry">
+        <div class="cl-version">v1.2.1</div>
+        <div class="cl-name">Weekly Summary Polish</div>
+        <div class="cl-desc">Metric names now use clean short labels (Sleep, Energy, Mood etc). Removed text callout boxes — metric rows only. Comparison window now matches the selected time tab — 7, 30, or 90 days vs the prior equivalent period.</div>
+      </div>
 
       <div class="cl-entry">
         <div class="cl-version">v1.2.0</div>
@@ -2051,9 +2057,9 @@ async function loadTrends() {
     .order('log_date');
   logsCache = logs || [];
 
-  // Prior 7 days window (always, regardless of chartWindow)
-  const prevEnd = new Date(Date.now() - 7 * 86400000);
-  const prevStart = new Date(Date.now() - 13 * 86400000);
+  // Prior window — same length as chartWindow, ending where current window starts
+  const prevEnd = new Date(Date.now() - chartWindow * 86400000);
+  const prevStart = new Date(Date.now() - (chartWindow * 2 - 1) * 86400000);
   const prevEndStr   = `${prevEnd.getFullYear()}-${String(prevEnd.getMonth()+1).padStart(2,'0')}-${String(prevEnd.getDate()).padStart(2,'0')}`;
   const prevStartStr = `${prevStart.getFullYear()}-${String(prevStart.getMonth()+1).padStart(2,'0')}-${String(prevStart.getDate()).padStart(2,'0')}`;
   const { data: prevLogs } = await db
@@ -2063,6 +2069,10 @@ async function loadTrends() {
     .lte('log_date', prevEndStr)
     .order('log_date');
   logsCachePrev = prevLogs || [];
+
+  // Update subtitle to match window
+  const subtitleEl = document.getElementById('weekly-subtitle');
+  if (subtitleEl) subtitleEl.textContent = `vs prior ${chartWindow} days`;
 
   renderWeeklySummary();
   renderDrilldown();
@@ -2104,7 +2114,7 @@ function renderWeeklySummary() {
   const body = document.getElementById('weekly-body');
   body.innerHTML = '';
 
-  // Build avg per question for this week and prior week
+  // Build avg per question for this window and prior window
   const thisMap = {};
   const prevMap = {};
   (logsCache || []).forEach(l => { if (l.answers) Object.entries(l.answers).forEach(([k,v]) => { if (v !== null) { thisMap[k] = thisMap[k] || []; thisMap[k].push(v); } }); });
@@ -2118,41 +2128,12 @@ function renderWeeklySummary() {
     prevAvg[q.id] = pk && pk.length >= 1 ? pk.reduce((a,b) => a+b,0)/pk.length : null;
   });
 
-  // Count days with data this week
-  const thisWeekDays = (logsCache || []).filter(l => l.answers && Object.values(l.answers).some(v => v !== null)).length;
-  const prevWeekDays = (logsCachePrev || []).filter(l => l.answers && Object.values(l.answers).some(v => v !== null)).length;
+  // Count days with data this window
+  const thisDays = (logsCache || []).filter(l => l.answers && Object.values(l.answers).some(v => v !== null)).length;
 
-  if (thisWeekDays < 3) {
-    body.innerHTML = `<div class="weekly-not-enough">Keep checking in — your weekly summary will appear here soon.</div>`;
+  if (thisDays < 3) {
+    body.innerHTML = `<div class="weekly-not-enough">Keep checking in — your summary will appear here soon.</div>`;
     return;
-  }
-
-  // Find most improved and worth watching
-  let bestDelta = -Infinity, worstDelta = Infinity;
-  let bestQ = null, worstQ = null;
-
-  questions.forEach(q => {
-    const t = thisAvg[q.id];
-    const p = prevAvg[q.id];
-    if (t !== null && p !== null) {
-      const delta = t - p;
-      if (delta > bestDelta)  { bestDelta = delta;  bestQ = q; }
-      if (delta < worstDelta) { worstDelta = delta; worstQ = q; }
-    }
-  });
-
-  // Callouts
-  if (bestQ && bestDelta >= 0.3) {
-    const callout = document.createElement('div');
-    callout.className = 'weekly-callout positive';
-    callout.textContent = `${bestQ.label.replace('How ', '').replace('?', '')} is trending up this week 🌸`;
-    body.appendChild(callout);
-  }
-  if (worstQ && worstDelta <= -0.3 && worstQ !== bestQ) {
-    const callout = document.createElement('div');
-    callout.className = 'weekly-callout negative';
-    callout.textContent = `${worstQ.label.replace('How ', '').replace('?', '')} is worth keeping an eye on`;
-    body.appendChild(callout);
   }
 
   // Metric rows
@@ -2169,12 +2150,12 @@ function renderWeeklySummary() {
     if (delta !== null && delta >= 0.3)  { arrowClass = 'up';   arrowChar = '↑'; }
     if (delta !== null && delta <= -0.3) { arrowClass = 'down'; arrowChar = '↓'; }
 
-    const shortName = q.label.replace(/^How (well |much |present |stable |sharp |calm |physically |energetic |clear |comfortable )?/, '').replace('?','').replace(' did you feel today','').replace(' did you feel last night','').replace(' last night','');
+    const name = q.short_label || q.label;
 
     const row = document.createElement('div');
     row.className = 'weekly-metric-row';
     row.innerHTML = `
-      <div class="weekly-metric-name">${shortName}</div>
+      <div class="weekly-metric-name">${name}</div>
       <div class="weekly-metric-vals">
         <span class="weekly-val-this">${t.toFixed(1)}</span>
         <span class="weekly-arrow ${arrowClass}">${arrowChar}</span>
@@ -2280,7 +2261,7 @@ async function submitFeedback() {
   await db.from('ht_feedback').insert({
     category,
     feedback: text,
-    app_version: 'v1.2.0',
+    app_version: 'v1.2.1',
   });
 
   document.getElementById('feedback-text').value = '';

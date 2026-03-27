@@ -1091,6 +1091,97 @@
     border-color: var(--rose);
     color: white;
   }
+  /* ── WEEKLY SUMMARY CARD ── */
+  .weekly-card {
+    background: var(--warm-white);
+    border-radius: 24px;
+    padding: 20px;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 20px 14px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 16px var(--shadow);
+  }
+  .weekly-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .weekly-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-light);
+  }
+  .weekly-subtitle {
+    font-size: 11px;
+    color: var(--text-light);
+  }
+  .weekly-not-enough {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    font-weight: 300;
+    color: var(--text-mid);
+    font-style: italic;
+    text-align: center;
+    padding: 8px 0;
+  }
+  .weekly-callout {
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  .weekly-callout.positive {
+    background: var(--sage-pale);
+    color: var(--sage);
+  }
+  .weekly-callout.negative {
+    background: var(--rose-pale);
+    color: var(--rose);
+  }
+  .weekly-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 12px;
+  }
+  .weekly-metric-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 2px;
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+  }
+  .weekly-metric-row:last-child { border-bottom: none; }
+  .weekly-metric-name {
+    font-size: 13px;
+    color: var(--text);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .weekly-metric-vals {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .weekly-arrow {
+    font-size: 14px;
+  }
+  .weekly-arrow.up   { color: var(--sage); }
+  .weekly-arrow.down { color: var(--rose); }
+  .weekly-arrow.flat { color: var(--text-light); }
+  .weekly-val-this { color: var(--text); }
+  .weekly-val-prev { color: var(--text-light); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -1133,7 +1224,7 @@
     <button class="btn btn-secondary" onclick="showTrends()">View my trends →</button>
 
     <div class="landing-footer">
-      <button class="version-badge" onclick="showChangelog()">v1.1.4</button>
+      <button class="version-badge" onclick="showChangelog()">v1.2.0</button>
       <button class="gear-btn" onclick="showSettings()" title="Settings">⚙️</button>
     </div>
   </div>
@@ -1326,6 +1417,12 @@
     </div>
 
     <div class="cl-entries">
+
+      <div class="cl-entry">
+        <div class="cl-version">v1.2.0</div>
+        <div class="cl-name">Weekly Summary</div>
+        <div class="cl-desc">Replaced the chaotic 11-line overview chart with a weekly summary card. Shows this week vs prior 7 days per metric with ↑↓→ indicators and averages to one decimal. Highlights most improved metric with a warm callout and flags anything worth watching. Shows a gentle prompt until enough data is available.</div>
+      </div>
 
       <div class="cl-entry">
         <div class="cl-version">v1.1.4</div>
@@ -1523,10 +1620,14 @@
     <button class="time-tab" onclick="setWindow(90,this)">90 days</button>
   </div>
 
-  <div class="overview-card">
-    <div class="overview-title">Overview — all metrics</div>
-    <canvas id="overview-chart" height="160"></canvas>
-    <div id="overview-loading" class="loading-dots"><span></span><span></span><span></span></div>
+  <div class="weekly-card" id="weekly-card">
+    <div class="weekly-header">
+      <div class="weekly-title">This week</div>
+      <div class="weekly-subtitle" id="weekly-subtitle">vs prior 7 days</div>
+    </div>
+    <div id="weekly-body">
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+    </div>
   </div>
 
   <div class="drilldown-list" id="drilldown-list">
@@ -1927,9 +2028,12 @@ async function submitEntry() {
 // ── TRENDS ────────────────────────────────────────────
 async function showTrends() {
   logsCache = null;
+  logsCachePrev = null;
   show('trends-screen');
   await loadTrends();
 }
+
+let logsCachePrev = null;
 
 async function loadTrends() {
   if (!questions.length) {
@@ -1937,6 +2041,7 @@ async function loadTrends() {
     questions = qs || [];
   }
 
+  // Current window
   const sinceDate = new Date(Date.now() - (chartWindow - 1) * 86400000);
   const since = `${sinceDate.getFullYear()}-${String(sinceDate.getMonth()+1).padStart(2,'0')}-${String(sinceDate.getDate()).padStart(2,'0')}`;
   const { data: logs } = await db
@@ -1946,7 +2051,20 @@ async function loadTrends() {
     .order('log_date');
   logsCache = logs || [];
 
-  renderOverview();
+  // Prior 7 days window (always, regardless of chartWindow)
+  const prevEnd = new Date(Date.now() - 7 * 86400000);
+  const prevStart = new Date(Date.now() - 13 * 86400000);
+  const prevEndStr   = `${prevEnd.getFullYear()}-${String(prevEnd.getMonth()+1).padStart(2,'0')}-${String(prevEnd.getDate()).padStart(2,'0')}`;
+  const prevStartStr = `${prevStart.getFullYear()}-${String(prevStart.getMonth()+1).padStart(2,'0')}-${String(prevStart.getDate()).padStart(2,'0')}`;
+  const { data: prevLogs } = await db
+    .from('ht_logs')
+    .select('log_date, answers')
+    .gte('log_date', prevStartStr)
+    .lte('log_date', prevEndStr)
+    .order('log_date');
+  logsCachePrev = prevLogs || [];
+
+  renderWeeklySummary();
   renderDrilldown();
 }
 
@@ -1955,6 +2073,7 @@ function setWindow(w, el) {
   document.querySelectorAll('.time-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   logsCache = null;
+  logsCachePrev = null;
   loadTrends();
 }
 
@@ -1981,45 +2100,91 @@ const PALETTE = [
   '#7aae8e','#c9a87a','#8e7aae','#7aaeae','#ae897a'
 ];
 
-function renderOverview() {
-  const loading = document.getElementById('overview-loading');
-  loading.style.display = 'none';
+function renderWeeklySummary() {
+  const body = document.getElementById('weekly-body');
+  body.innerHTML = '';
 
-  const isoLabels = buildISOLabels();
-  const dispLabels = buildDateLabels();
-  const logMap = {};
-  (logsCache || []).forEach(l => { logMap[l.log_date] = l.answers; });
+  // Build avg per question for this week and prior week
+  const thisMap = {};
+  const prevMap = {};
+  (logsCache || []).forEach(l => { if (l.answers) Object.entries(l.answers).forEach(([k,v]) => { if (v !== null) { thisMap[k] = thisMap[k] || []; thisMap[k].push(v); } }); });
+  (logsCachePrev || []).forEach(l => { if (l.answers) Object.entries(l.answers).forEach(([k,v]) => { if (v !== null) { prevMap[k] = prevMap[k] || []; prevMap[k].push(v); } }); });
 
-  const datasets = questions.map((q, i) => ({
-    label: q.label,
-    data: isoLabels.map(d => logMap[d]?.[q.id] ?? null),
-    borderColor: PALETTE[i % PALETTE.length],
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    pointRadius: 3,
-    pointHoverRadius: 5,
-    tension: 0.3,
-    spanGaps: true,
-  }));
+  const thisAvg = {}, prevAvg = {};
+  questions.forEach(q => {
+    const tk = thisMap[String(q.id)];
+    const pk = prevMap[String(q.id)];
+    thisAvg[q.id] = tk && tk.length >= 1 ? tk.reduce((a,b) => a+b,0)/tk.length : null;
+    prevAvg[q.id] = pk && pk.length >= 1 ? pk.reduce((a,b) => a+b,0)/pk.length : null;
+  });
 
-  if (overviewChart) overviewChart.destroy();
-  const ctx = document.getElementById('overview-chart').getContext('2d');
-  overviewChart = new Chart(ctx, {
-    type: 'line',
-    data: { labels: dispLabels, datasets },
-    options: {
-      responsive: true,
-      animation: { duration: 600 },
-      scales: {
-        y: { min: 1, max: 5, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: '#f0e8e4' } },
-        x: { ticks: { font: { size: 10 }, maxRotation: 0, maxTicksLimit: 7 }, grid: { display: false } }
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: { mode: 'index', intersect: false }
-      }
+  // Count days with data this week
+  const thisWeekDays = (logsCache || []).filter(l => l.answers && Object.values(l.answers).some(v => v !== null)).length;
+  const prevWeekDays = (logsCachePrev || []).filter(l => l.answers && Object.values(l.answers).some(v => v !== null)).length;
+
+  if (thisWeekDays < 3) {
+    body.innerHTML = `<div class="weekly-not-enough">Keep checking in — your weekly summary will appear here soon.</div>`;
+    return;
+  }
+
+  // Find most improved and worth watching
+  let bestDelta = -Infinity, worstDelta = Infinity;
+  let bestQ = null, worstQ = null;
+
+  questions.forEach(q => {
+    const t = thisAvg[q.id];
+    const p = prevAvg[q.id];
+    if (t !== null && p !== null) {
+      const delta = t - p;
+      if (delta > bestDelta)  { bestDelta = delta;  bestQ = q; }
+      if (delta < worstDelta) { worstDelta = delta; worstQ = q; }
     }
   });
+
+  // Callouts
+  if (bestQ && bestDelta >= 0.3) {
+    const callout = document.createElement('div');
+    callout.className = 'weekly-callout positive';
+    callout.textContent = `${bestQ.label.replace('How ', '').replace('?', '')} is trending up this week 🌸`;
+    body.appendChild(callout);
+  }
+  if (worstQ && worstDelta <= -0.3 && worstQ !== bestQ) {
+    const callout = document.createElement('div');
+    callout.className = 'weekly-callout negative';
+    callout.textContent = `${worstQ.label.replace('How ', '').replace('?', '')} is worth keeping an eye on`;
+    body.appendChild(callout);
+  }
+
+  // Metric rows
+  const metricsDiv = document.createElement('div');
+  metricsDiv.className = 'weekly-metrics';
+
+  questions.forEach(q => {
+    const t = thisAvg[q.id];
+    const p = prevAvg[q.id];
+    if (t === null) return;
+
+    const delta = (t !== null && p !== null) ? t - p : null;
+    let arrowClass = 'flat', arrowChar = '→';
+    if (delta !== null && delta >= 0.3)  { arrowClass = 'up';   arrowChar = '↑'; }
+    if (delta !== null && delta <= -0.3) { arrowClass = 'down'; arrowChar = '↓'; }
+
+    const shortName = q.label.replace(/^How (well |much |present |stable |sharp |calm |physically |energetic |clear |comfortable )?/, '').replace('?','').replace(' did you feel today','').replace(' did you feel last night','').replace(' last night','');
+
+    const row = document.createElement('div');
+    row.className = 'weekly-metric-row';
+    row.innerHTML = `
+      <div class="weekly-metric-name">${shortName}</div>
+      <div class="weekly-metric-vals">
+        <span class="weekly-val-this">${t.toFixed(1)}</span>
+        <span class="weekly-arrow ${arrowClass}">${arrowChar}</span>
+        <span class="weekly-val-prev">${p !== null ? p.toFixed(1) : '—'}</span>
+      </div>
+    `;
+    metricsDiv.appendChild(row);
+  });
+
+  body.appendChild(metricsDiv);
 }
 
 function renderDrilldown() {
@@ -2031,7 +2196,7 @@ function renderDrilldown() {
   (logsCache || []).forEach(l => { logMap[l.log_date] = l.answers; });
 
   questions.forEach((q, i) => {
-    const vals = isoLabels.map(d => logMap[d]?.[q.id] ?? null).filter(v => v !== null);
+    const vals = isoLabels.map(d => logMap[d]?.[String(q.id)] ?? null).filter(v => v !== null);
     const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '—';
 
     const card = document.createElement('div');
@@ -2055,7 +2220,7 @@ function renderDrilldown() {
       data: {
         labels: isoLabels.map(d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' })),
         datasets: [{
-          data: isoLabels.map(d => logMap[d]?.[q.id] ?? null),
+          data: isoLabels.map(d => logMap[d]?.[String(q.id)] ?? null),
           borderColor: PALETTE[i % PALETTE.length],
           backgroundColor: PALETTE[i % PALETTE.length] + '22',
           fill: true,
@@ -2115,7 +2280,7 @@ async function submitFeedback() {
   await db.from('ht_feedback').insert({
     category,
     feedback: text,
-    app_version: 'v1.1.4',
+    app_version: 'v1.2.0',
   });
 
   document.getElementById('feedback-text').value = '';

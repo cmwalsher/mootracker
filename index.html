@@ -1182,6 +1182,26 @@
   .weekly-arrow.flat { color: var(--text-light); }
   .weekly-val-this { color: var(--text); }
   .weekly-val-prev { color: var(--text-light); font-size: 12px; }
+  /* Food chips — smaller for dense grid */
+  .food-chip {
+    padding: 6px 11px;
+    border-radius: 50px;
+    border: 1.5px solid var(--border);
+    background: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+  }
+  .food-chip.selected {
+    background: var(--sage);
+    border-color: var(--sage);
+    color: white;
+  }
+  .food-chip:active { transform: scale(0.95); }
 </style>
 </head>
 <body>
@@ -1224,7 +1244,7 @@
     <button class="btn btn-secondary" onclick="showTrends()">View my trends →</button>
 
     <div class="landing-footer">
-      <button class="version-badge" onclick="showChangelog()">v1.2.1</button>
+      <button class="version-badge" onclick="showChangelog()">v1.2.2</button>
       <button class="gear-btn" onclick="showSettings()" title="Settings">⚙️</button>
     </div>
   </div>
@@ -1419,6 +1439,12 @@
     <div class="cl-entries">
 
       <div class="cl-entry">
+        <div class="cl-version">v1.2.2</div>
+        <div class="cl-name">Food Log</div>
+        <div class="cl-desc">Added a food log section to the notes screen — tap to expand and select what you ate today from 24 common foods. Supports custom entries. Stored separately for future eczema correlation analysis.</div>
+      </div>
+
+      <div class="cl-entry">
         <div class="cl-version">v1.2.1</div>
         <div class="cl-name">Weekly Summary Polish</div>
         <div class="cl-desc">Metric names now use clean short labels (Sleep, Energy, Mood etc). Removed text callout boxes — metric rows only. Comparison window now matches the selected time tab — 7, 30, or 90 days vs the prior equivalent period.</div>
@@ -1594,6 +1620,44 @@
     <!-- Free text notes -->
     <textarea class="notes-area" id="notes-input"
               placeholder="Optional — jot down anything worth remembering today…" rows="4"></textarea>
+
+    <!-- Food log — expandable -->
+    <div class="event-expander" id="food-expander">
+      <button class="event-trigger" id="food-trigger" onclick="toggleFoodExpander()">
+        <span>+ What did you eat today?</span>
+        <span class="event-arrow" id="food-arrow">▼</span>
+      </button>
+      <div class="event-chips" id="food-chips" style="gap:6px;">
+        <div style="width:100%;font-size:11px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-light);padding:4px 2px 6px;">Food today</div>
+        <button class="food-chip" data-food="Beef"      onclick="toggleFoodChip(this)">Beef</button>
+        <button class="food-chip" data-food="Burger"    onclick="toggleFoodChip(this)">Burger</button>
+        <button class="food-chip" data-food="Chicken"   onclick="toggleFoodChip(this)">Chicken</button>
+        <button class="food-chip" data-food="Coffee"    onclick="toggleFoodChip(this)">Coffee</button>
+        <button class="food-chip" data-food="Couscous"  onclick="toggleFoodChip(this)">Couscous</button>
+        <button class="food-chip" data-food="Dim sum"   onclick="toggleFoodChip(this)">Dim sum</button>
+        <button class="food-chip" data-food="Egg"       onclick="toggleFoodChip(this)">Egg</button>
+        <button class="food-chip" data-food="Granola"   onclick="toggleFoodChip(this)">Granola</button>
+        <button class="food-chip" data-food="Pasta"     onclick="toggleFoodChip(this)">Pasta</button>
+        <button class="food-chip" data-food="Pho"       onclick="toggleFoodChip(this)">Pho</button>
+        <button class="food-chip" data-food="Pizza"     onclick="toggleFoodChip(this)">Pizza</button>
+        <button class="food-chip" data-food="Quinoa"    onclick="toggleFoodChip(this)">Quinoa</button>
+        <button class="food-chip" data-food="Rice"      onclick="toggleFoodChip(this)">Rice</button>
+        <button class="food-chip" data-food="Salad"     onclick="toggleFoodChip(this)">Salad</button>
+        <button class="food-chip" data-food="Sandwich"  onclick="toggleFoodChip(this)">Sandwich</button>
+        <button class="food-chip" data-food="Seafood"   onclick="toggleFoodChip(this)">Seafood</button>
+        <button class="food-chip" data-food="Shellfish" onclick="toggleFoodChip(this)">Shellfish</button>
+        <button class="food-chip" data-food="Soda"      onclick="toggleFoodChip(this)">Soda</button>
+        <button class="food-chip" data-food="Sushi"     onclick="toggleFoodChip(this)">Sushi</button>
+        <button class="food-chip" data-food="Sweets"    onclick="toggleFoodChip(this)">Sweets</button>
+        <button class="food-chip" data-food="Tacos"     onclick="toggleFoodChip(this)">Tacos</button>
+        <button class="food-chip" data-food="Toast"     onclick="toggleFoodChip(this)">Toast</button>
+        <button class="food-chip" data-food="Veggies"   onclick="toggleFoodChip(this)">Veggies</button>
+        <button class="food-chip" data-food="Yogurt"    onclick="toggleFoodChip(this)">Yogurt</button>
+        <button class="food-chip" id="custom-food-chip" onclick="toggleCustomInput('custom-food-chip','custom-food-input')">+ Custom…</button>
+        <input class="custom-event-input" id="custom-food-input" type="text"
+               placeholder="Anything else…" style="display:none;width:100%;margin-top:4px;">
+      </div>
+    </div>
 
     <button class="btn btn-primary" onclick="submitEntry()">Submit today's entry</button>
     <button class="btn btn-ghost" onclick="goBack()">← Back to questions</button>
@@ -1926,6 +1990,29 @@ function showNotes() {
     }
   }
 
+  // Reset food chips
+  document.querySelectorAll('.food-chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('custom-food-input').style.display = 'none';
+  document.getElementById('custom-food-input').value = '';
+
+  // Restore food log (edit mode)
+  if (todayEntry?.food_log) {
+    todayEntry.food_log.forEach(f => {
+      const chip = document.querySelector(`.food-chip[data-food="${f}"]`);
+      if (chip) chip.classList.add('selected');
+    });
+    if (todayEntry.custom_food) {
+      document.getElementById('custom-food-chip').classList.add('selected');
+      document.getElementById('custom-food-input').style.display = 'block';
+      document.getElementById('custom-food-input').value = todayEntry.custom_food;
+    }
+  }
+
+  // Collapse food expander
+  document.getElementById('food-expander').classList.remove('open');
+  document.getElementById('food-trigger').classList.remove('open');
+  document.getElementById('food-chips').classList.remove('open');
+
   // Restore notes
   document.getElementById('notes-input').value = todayEntry?.notes || '';
 
@@ -2000,6 +2087,11 @@ async function submitEntry() {
   document.querySelectorAll('.chip[data-effect].selected').forEach(c => sideEffects.push(c.dataset.effect));
   const customEffectVal = document.getElementById('custom-effect-input').value.trim();
 
+  // Collect food log
+  const foodLog = [];
+  document.querySelectorAll('.food-chip[data-food].selected').forEach(c => foodLog.push(c.dataset.food));
+  const customFoodVal = document.getElementById('custom-food-input').value.trim();
+
   const payload = {
     log_date:      todayISO(),
     answers:       answers,
@@ -2008,6 +2100,8 @@ async function submitEntry() {
     custom_event:  customEventVal || null,
     side_effects:  sideEffects.length ? sideEffects : null,
     custom_effect: customEffectVal || null,
+    food_log:      foodLog.length ? foodLog : null,
+    custom_food:   customFoodVal || null,
   };
 
   // Always re-fetch today's row fresh to avoid stale todayEntry ID
@@ -2261,7 +2355,7 @@ async function submitFeedback() {
   await db.from('ht_feedback').insert({
     category,
     feedback: text,
-    app_version: 'v1.2.1',
+    app_version: 'v1.2.2',
   });
 
   document.getElementById('feedback-text').value = '';
@@ -2271,6 +2365,19 @@ async function submitFeedback() {
     document.getElementById('feedback-confirm').style.display = 'none';
     hideFeedbackForm();
   }, 2000);
+}
+
+function toggleFoodExpander() {
+  const expander = document.getElementById('food-expander');
+  const trigger  = document.getElementById('food-trigger');
+  const chips    = document.getElementById('food-chips');
+  expander.classList.toggle('open');
+  trigger.classList.toggle('open');
+  chips.classList.toggle('open');
+}
+
+function toggleFoodChip(el) {
+  el.classList.toggle('selected');
 }
 
 // ── CHANGELOG ────────────────────────────────────────

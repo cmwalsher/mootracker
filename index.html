@@ -1150,6 +1150,21 @@
 <!-- Export toast -->
 <div class="export-toast" id="export-toast">Copied to clipboard ✓</div>
 
+<!-- Export fallback modal -->
+<div id="export-modal" style="display:none;position:fixed;inset:0;background:rgba(61,46,42,0.4);backdrop-filter:blur(4px);z-index:200;padding:24px;align-items:flex-end;justify-content:center;">
+  <div style="background:var(--warm-white);border-radius:28px 28px 0 0;width:100%;max-width:480px;max-height:75dvh;display:flex;flex-direction:column;padding:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;">Export <em style="font-style:italic;color:var(--rose)">ready</em></div>
+      <button onclick="closeExportModal()" style="background:none;border:none;font-size:20px;color:var(--text-light);cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:12px 20px;font-size:13px;color:var(--text-mid);">Press and hold the text below → Select All → Copy, then paste into Claude.</div>
+    <textarea id="export-text-area" readonly style="flex:1;margin:0 16px 16px;padding:14px;border-radius:14px;border:1.5px solid var(--border);background:var(--cream);font-family:monospace;font-size:11px;color:var(--text);resize:none;outline:none;line-height:1.5;overflow-y:auto;"></textarea>
+    <div style="padding:0 16px 24px;">
+      <button class="btn btn-primary" onclick="tryCopyFromModal()">Copy to clipboard</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://prvrmmwicuionzuzmfnw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBydnJtbXdpY3Vpb256dXptZm53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODkyMDEsImV4cCI6MjA4OTI2NTIwMX0.L2iGKoOOqwDt4158ca4g5pXbcBA_zyxeQRsJy1wQlNQ';
@@ -1637,21 +1652,46 @@ async function exportForAI() {
   md += `5. One or two encouraging observations if the data supports them\n\n`;
   md += `Please use plain, warm language — not clinical.\n`;
 
-  // Copy to clipboard
+  // Copy to clipboard — iOS requires clipboard write immediately after gesture
+  // Since we await Supabase above, clipboard may be blocked — show modal fallback
+  let copied = false;
   try {
     await navigator.clipboard.writeText(md);
+    copied = true;
+  } catch {}
+
+  if (copied) {
+    showToast('Copied to clipboard ✓');
+  } else {
+    // Show fallback modal with the text
+    document.getElementById('export-text-area').value = md;
+    const modal = document.getElementById('export-modal');
+    modal.style.display = 'flex';
+    // Try selecting the textarea for easy copy
+    setTimeout(() => {
+      const ta = document.getElementById('export-text-area');
+      ta.focus();
+      ta.select();
+    }, 300);
+  }
+}
+
+function closeExportModal() {
+  document.getElementById('export-modal').style.display = 'none';
+}
+
+async function tryCopyFromModal() {
+  const text = document.getElementById('export-text-area').value;
+  try {
+    await navigator.clipboard.writeText(text);
+    closeExportModal();
     showToast('Copied to clipboard ✓');
   } catch {
-    // Fallback for older browsers
-    const ta = document.createElement('textarea');
-    ta.value = md;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
+    // Last resort — select all so she can copy manually
+    const ta = document.getElementById('export-text-area');
+    ta.focus();
     ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    showToast('Copied to clipboard ✓');
+    showToast('Text selected — now copy manually');
   }
 }
 

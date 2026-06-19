@@ -207,6 +207,12 @@
   .food-chip{padding:6px 11px;border-radius:50px;border:1.5px solid var(--border);background:var(--cream);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--text-mid);cursor:pointer;transition:all 0.18s ease;white-space:nowrap;}
   .food-chip.selected{background:var(--sage);border-color:var(--sage);color:white;}
   .food-chip:active{transform:scale(0.95);}
+  /* Yesterday shortcut + editing banner */
+  .yesterday-link{display:none;width:100%;text-align:center;background:none;border:none;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text-light);cursor:pointer;padding:8px 0;text-decoration:underline;text-underline-offset:3px;transition:color 0.2s;}
+  .yesterday-link.visible{display:block;}
+  .yesterday-link:active{color:var(--rose);}
+  .editing-banner{display:none;width:100%;max-width:420px;background:var(--sage-pale);color:var(--sage);font-size:12px;font-weight:500;text-align:center;padding:8px 16px;border-radius:50px;margin:0 0 14px;}
+  .editing-banner.visible{display:block;}
 </style>
 </head>
 <body>
@@ -231,8 +237,9 @@
     <button class="btn btn-primary" id="start-btn" onclick="startCheckin()" style="margin-bottom:4px;">Start today's check-in</button>
     <button class="patch-shortcut" id="patch-shortcut" onclick="logPatchFromLanding()"><span>🩹</span><span>I changed my patch today</span></button>
     <button class="btn btn-secondary" onclick="showTrends()">View my trends →</button>
+    <button class="yesterday-link" id="yesterday-link" onclick="startYesterdayCheckin()">Forgot yesterday? →</button>
     <div class="landing-footer">
-      <button class="version-badge" onclick="showChangelog()">v1.2.4</button>
+      <button class="version-badge" onclick="showChangelog()">v1.3.0</button>
       <button class="gear-btn" onclick="showSettings()" title="Settings">⚙️</button>
     </div>
   </div>
@@ -326,44 +333,29 @@
     </div>
     <div class="cl-entries">
       <div class="cl-entry">
+        <div class="cl-version">v1.3.0</div>
+        <div class="cl-name">Edit Yesterday</div>
+        <div class="cl-desc">Added a "Forgot yesterday?" link on the landing screen that appears only when yesterday's check-in is missing or incomplete. Lets you go back and fill it in using the exact same flow, with a small banner showing which day you're editing.</div>
+      </div>
+      <div class="cl-entry">
         <div class="cl-version">v1.2.4</div>
         <div class="cl-name">Answer Persistence Fix</div>
-        <div class="cl-desc">Fixed a bug where daily answers could be lost if app state reset mid check-in. Answers are now saved to device storage as you tap, and recovered automatically before submitting. Existing null-only entries no longer overwrite real answers on edit.</div>
+        <div class="cl-desc">Fixed a bug where daily answers could be lost if app state reset mid check-in. Answers are now saved to device storage as you tap, and recovered automatically before submitting.</div>
       </div>
       <div class="cl-entry">
         <div class="cl-version">v1.2.3</div>
         <div class="cl-name">AI Export</div>
-        <div class="cl-desc">Added "Export for AI analysis" button on the trends screen. Copies a self-describing Markdown summary of your data to your clipboard. Paste into a Claude chat for plain-language interpretation and pattern analysis.</div>
+        <div class="cl-desc">Added "Export for AI analysis" button on the trends screen. Copies a self-describing Markdown summary of your data to your clipboard.</div>
       </div>
       <div class="cl-entry">
         <div class="cl-version">v1.2.2</div>
         <div class="cl-name">Food Log</div>
-        <div class="cl-desc">Added a food log section to the notes screen with 24 common foods. Stored for future eczema correlation analysis.</div>
-      </div>
-      <div class="cl-entry">
-        <div class="cl-version">v1.2.1</div>
-        <div class="cl-name">Weekly Summary Polish</div>
-        <div class="cl-desc">Short metric labels, removed callout boxes, comparison window matches selected time tab.</div>
+        <div class="cl-desc">Added a food log section to the notes screen with 24 common foods.</div>
       </div>
       <div class="cl-entry">
         <div class="cl-version">v1.2.0</div>
         <div class="cl-name">Weekly Summary</div>
         <div class="cl-desc">Replaced overview chart with weekly summary showing this period vs prior with ↑↓→ indicators.</div>
-      </div>
-      <div class="cl-entry">
-        <div class="cl-version">v1.1.4</div>
-        <div class="cl-name">Patch Schedule Mode 2</div>
-        <div class="cl-desc">Added day-of-week patch scheduling alongside interval mode.</div>
-      </div>
-      <div class="cl-entry">
-        <div class="cl-version">v1.1.2</div>
-        <div class="cl-name">Patch Tracking Cleanup &amp; UX Polish</div>
-        <div class="cl-desc">Unified patch tracking, restyled landing shortcut, 800ms auto-advance.</div>
-      </div>
-      <div class="cl-entry">
-        <div class="cl-version">v1.1.1</div>
-        <div class="cl-name">Side Effects, UX Polish &amp; Auth</div>
-        <div class="cl-desc">Events and Side Effects split. Password remembered for one year.</div>
       </div>
       <div class="cl-entry">
         <div class="cl-version">v1.1.0</div>
@@ -386,6 +378,7 @@
     <div class="q-count" id="q-count-label">1 / 10</div>
   </div>
   <div class="q-card">
+    <div class="editing-banner" id="editing-banner-q"></div>
     <div class="q-category" id="q-category"></div>
     <div class="q-text" id="q-text"></div>
     <div class="q-anchors"><span id="q-low-label"></span><span id="q-high-label"></span></div>
@@ -401,6 +394,7 @@
 
 <div class="screen hidden" id="notes-screen">
   <div class="card" style="overflow-y:auto;max-height:100dvh;">
+    <div class="editing-banner" id="editing-banner-notes"></div>
     <div class="logo">Almost there</div>
     <div class="tagline">Anything else on your <em>mind?</em></div>
     <button class="patch-btn" id="patch-btn" onclick="togglePatch()"><span id="patch-icon">🩹</span><span id="patch-label">I changed my patch today</span></button>
@@ -460,7 +454,7 @@
         <input class="custom-event-input" id="custom-food-input" type="text" placeholder="Anything else…" style="display:none;width:100%;margin-top:4px;">
       </div>
     </div>
-    <button class="btn btn-primary" onclick="submitEntry()">Submit today's entry</button>
+    <button class="btn btn-primary" onclick="submitEntry()">Submit entry</button>
     <button class="btn btn-ghost" onclick="goBack()">← Back to questions</button>
   </div>
 </div>
@@ -468,7 +462,7 @@
 <div class="screen hidden" id="done-screen">
   <div class="card" style="text-align:center">
     <div class="confetti-icon">🌸</div>
-    <div class="tagline">All <em>done</em> for today</div>
+    <div class="tagline">All <em>done</em></div>
     <p style="color:var(--text-mid);font-size:15px;line-height:1.5;margin-bottom:28px;">Your check-in has been saved. See you tomorrow — take good care of yourself today.</p>
     <button class="btn btn-primary" onclick="showTrends()">View my trends →</button>
     <button class="btn btn-secondary" onclick="showLanding()">Back to home</button>
@@ -521,12 +515,15 @@ const APP_PASSWORD='moomoo';
 const{createClient}=supabase;
 const db=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let questions=[],answers={},currentQ=0,todayEntry=null,chartWindow=7,drillCharts={},logsCache=null,logsCachePrev=null;
+let targetDate=null; // null = today; set to a date string when editing a past day
 
 function todayISO(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function formatDisplay(iso){const[y,m,d]=iso.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}
 function greeting(){const h=new Date().getHours();if(h<12)return'morning';if(h<17)return'afternoon';return'evening';}
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');}
 function isoFromOffset(n){const d=new Date(Date.now()-n*86400000);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function activeDate(){return targetDate||todayISO();}
+function draftKey(){return`wt_answers_draft_${activeDate()}`;}
 
 function isAuthed(){const ts=localStorage.getItem('wt_auth_ts');if(!ts)return false;return(Date.now()-parseInt(ts))<365*24*60*60*1000;}
 document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')checkPassword();});
@@ -534,6 +531,7 @@ function checkPassword(){const val=document.getElementById('pw-input').value;if(
 
 async function init(){
   show('landing-screen');
+  targetDate=null;
   document.getElementById('today-date-label').textContent=formatDisplay(todayISO());
   document.getElementById('greeting-time').textContent=greeting();
   document.getElementById('start-btn').textContent="Start today's check-in";
@@ -551,6 +549,17 @@ async function init(){
   const hasAnswers=todayEntry&&todayEntry.answers&&Object.values(todayEntry.answers).some(v=>v!==null);
   if(hasAnswers){document.getElementById('start-btn').textContent="Edit today's entry";answers=todayEntry.answers;}
   else{document.getElementById('start-btn').textContent="Start today's check-in";answers={};}
+
+  // Check yesterday for the "Forgot yesterday?" link
+  const yIso=isoFromOffset(1);
+  const yEntry=(recent||[]).find(r=>r.log_date===yIso);
+  let yesterdayComplete=false;
+  if(yEntry){
+    const{data:yFull}=await db.from('ht_logs').select('answers').eq('log_date',yIso).maybeSingle();
+    yesterdayComplete=!!(yFull&&yFull.answers&&Object.values(yFull.answers).some(v=>v!==null));
+  }
+  document.getElementById('yesterday-link').classList.toggle('visible',!yesterdayComplete);
+
   const s=loadSettings();
   updatePatchBadge(s);
   const shortcut=document.getElementById('patch-shortcut');
@@ -558,12 +567,32 @@ async function init(){
 }
 
 async function startCheckin(){
+  targetDate=null;
   if(!questions.length){const{data:qs}=await db.from('ht_questions').select('*').eq('active',true).order('sort_order');questions=qs||[];}
   if(!questions.length)return;
-  const{data:existing}=await db.from('ht_logs').select('*').eq('log_date',todayISO()).maybeSingle();
+  const{data:existing}=await db.from('ht_logs').select('*').eq('log_date',activeDate()).maybeSingle();
   if(existing&&existing.answers&&Object.values(existing.answers).some(v=>v!==null)){answers=existing.answers;todayEntry=existing;}
-  else{answers={};sessionStorage.removeItem('wt_answers_draft');todayEntry=existing||null;}
-  currentQ=0;renderQuestion();show('q-screen');
+  else{answers={};sessionStorage.removeItem(draftKey());todayEntry=existing||null;}
+  currentQ=0;renderQuestion();updateEditingBanners();show('q-screen');
+}
+
+async function startYesterdayCheckin(){
+  targetDate=isoFromOffset(1);
+  if(!questions.length){const{data:qs}=await db.from('ht_questions').select('*').eq('active',true).order('sort_order');questions=qs||[];}
+  if(!questions.length)return;
+  const{data:existing}=await db.from('ht_logs').select('*').eq('log_date',activeDate()).maybeSingle();
+  if(existing&&existing.answers&&Object.values(existing.answers).some(v=>v!==null)){answers=existing.answers;todayEntry=existing;}
+  else{answers={};sessionStorage.removeItem(draftKey());todayEntry=existing||null;}
+  currentQ=0;renderQuestion();updateEditingBanners();show('q-screen');
+}
+
+function updateEditingBanners(){
+  const editing=!!targetDate;
+  const label=editing?`Editing ${formatDisplay(targetDate)}`:'';
+  [document.getElementById('editing-banner-q'),document.getElementById('editing-banner-notes')].forEach(el=>{
+    el.textContent=label;
+    el.classList.toggle('visible',editing);
+  });
 }
 
 let autoAdvanceTimer=null;
@@ -584,17 +613,16 @@ function renderQuestion(){
   for(let v=1;v<=5;v++){const btn=document.createElement('button');btn.className='r-btn'+(saved===v?' selected':'');btn.textContent=v;btn.addEventListener('click',()=>selectRating(v));row1.appendChild(btn);}
 }
 
-// FIX 1: Persist answers to sessionStorage on every rating tap
 function selectRating(v){
   if(autoAdvanceTimer)clearTimeout(autoAdvanceTimer);
   const q=questions[currentQ];
   answers[q.id]=v;
-  sessionStorage.setItem('wt_answers_draft',JSON.stringify(answers));
+  sessionStorage.setItem(draftKey(),JSON.stringify(answers));
   document.querySelectorAll('.r-btn').forEach(b=>b.classList.toggle('selected',parseInt(b.textContent)===v));
   autoAdvanceTimer=setTimeout(()=>{autoAdvanceTimer=null;nextQuestion();},800);
 }
 
-function passQuestion(){if(autoAdvanceTimer)clearTimeout(autoAdvanceTimer);answers[questions[currentQ].id]=null;nextQuestion();}
+function passQuestion(){if(autoAdvanceTimer)clearTimeout(autoAdvanceTimer);answers[questions[currentQ].id]=null;sessionStorage.setItem(draftKey(),JSON.stringify(answers));nextQuestion();}
 function nextQuestion(){if(currentQ<questions.length-1){currentQ++;renderQuestion();}else showNotes();}
 function prevQuestion(){if(autoAdvanceTimer)clearTimeout(autoAdvanceTimer);if(currentQ>0){currentQ--;renderQuestion();}else show('landing-screen');}
 
@@ -611,6 +639,7 @@ function showNotes(){
   ['food-expander','food-trigger','food-chips'].forEach(id=>document.getElementById(id).classList.remove('open'));
   document.getElementById('notes-input').value=todayEntry?.notes||'';
   ['event-expander','event-trigger','event-chips'].forEach(id=>document.getElementById(id).classList.remove('open'));
+  updateEditingBanners();
   show('notes-screen');
 }
 
@@ -636,21 +665,24 @@ async function submitEntry(){
   document.querySelectorAll('.food-chip[data-food].selected').forEach(c=>foodLog.push(c.dataset.food));
   const customFoodVal=document.getElementById('custom-food-input').value.trim();
 
-  const payload={log_date:todayISO(),answers,notes:notes||null,events:events.length?events:null,custom_event:customEventVal||null,side_effects:sideEffects.length?sideEffects:null,custom_effect:customEffectVal||null,food_log:foodLog.length?foodLog:null,custom_food:customFoodVal||null};
+  const dateForSubmit=activeDate();
+  const payload={log_date:dateForSubmit,answers,notes:notes||null,events:events.length?events:null,custom_event:customEventVal||null,side_effects:sideEffects.length?sideEffects:null,custom_effect:customEffectVal||null,food_log:foodLog.length?foodLog:null,custom_food:customFoodVal||null};
 
-  const{data:freshEntry}=await db.from('ht_logs').select('id, answers').eq('log_date',todayISO()).maybeSingle();
+  const{data:freshEntry}=await db.from('ht_logs').select('id, answers').eq('log_date',dateForSubmit).maybeSingle();
 
-  // FIX 2: Restore from sessionStorage draft if answers empty, filter nulls from existing
-  const draft=sessionStorage.getItem('wt_answers_draft');
+  const dk=draftKey();
+  const draft=sessionStorage.getItem(dk);
   if(draft&&Object.keys(answers).length===0){try{Object.assign(answers,JSON.parse(draft));}catch{}}
   const existingNonNull={};
   Object.entries(freshEntry?.answers||{}).forEach(([k,v])=>{if(v!==null)existingNonNull[k]=v;});
   payload.answers=Object.assign({},existingNonNull,answers);
-  sessionStorage.removeItem('wt_answers_draft');
+  sessionStorage.removeItem(dk);
 
   if(freshEntry)await db.from('ht_logs').update(payload).eq('id',freshEntry.id);
   else await db.from('ht_logs').insert(payload);
-  logsCache=null;show('done-screen');
+  logsCache=null;
+  targetDate=null;
+  show('done-screen');
 }
 
 async function showTrends(){logsCache=null;logsCachePrev=null;show('trends-screen');await loadTrends();}
@@ -739,12 +771,12 @@ function closeExportModal(){document.getElementById('export-modal').style.displa
 async function tryCopyFromModal(){const text=document.getElementById('export-text-area').value;try{await navigator.clipboard.writeText(text);closeExportModal();showToast('Copied to clipboard ✓');}catch{const ta=document.getElementById('export-text-area');ta.focus();ta.select();showToast('Text selected — now copy manually');}}
 function showToast(msg){const toast=document.getElementById('export-toast');toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2500);}
 
-function showLanding(){show('landing-screen');const qHidden=document.getElementById('q-screen').classList.contains('hidden'),notesHidden=document.getElementById('notes-screen').classList.contains('hidden');if(qHidden&&notesHidden)init();}
+function showLanding(){show('landing-screen');targetDate=null;const qHidden=document.getElementById('q-screen').classList.contains('hidden'),notesHidden=document.getElementById('notes-screen').classList.contains('hidden');if(qHidden&&notesHidden)init();}
 
 function showFeedbackForm(){document.getElementById('cl-feedback-form').style.display='block';document.getElementById('feedback-confirm').style.display='none';document.getElementById('feedback-text').value='';document.querySelectorAll('.chip[data-cat]').forEach(c=>c.classList.remove('selected'));}
 function hideFeedbackForm(){document.getElementById('cl-feedback-form').style.display='none';}
 function toggleFeedbackCat(el){document.querySelectorAll('.chip[data-cat]').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');}
-async function submitFeedback(){const text=document.getElementById('feedback-text').value.trim();if(!text)return;const catEl=document.querySelector('.chip[data-cat].selected');await db.from('ht_feedback').insert({category:catEl?.dataset.cat||null,feedback:text,app_version:'v1.2.4'});document.getElementById('feedback-text').value='';document.querySelectorAll('.chip[data-cat]').forEach(c=>c.classList.remove('selected'));document.getElementById('feedback-confirm').style.display='block';setTimeout(()=>{document.getElementById('feedback-confirm').style.display='none';hideFeedbackForm();},2000);}
+async function submitFeedback(){const text=document.getElementById('feedback-text').value.trim();if(!text)return;const catEl=document.querySelector('.chip[data-cat].selected');await db.from('ht_feedback').insert({category:catEl?.dataset.cat||null,feedback:text,app_version:'v1.3.0'});document.getElementById('feedback-text').value='';document.querySelectorAll('.chip[data-cat]').forEach(c=>c.classList.remove('selected'));document.getElementById('feedback-confirm').style.display='block';setTimeout(()=>{document.getElementById('feedback-confirm').style.display='none';hideFeedbackForm();},2000);}
 function showChangelog(){const overlay=document.getElementById('changelog-overlay');overlay.classList.remove('hidden');overlay.classList.add('fade-in');}
 function hideChangelog(){document.getElementById('changelog-overlay').classList.add('hidden');}
 
